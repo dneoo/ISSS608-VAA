@@ -1,7 +1,8 @@
 ---
 title: "Hands-on Exercise 1"
 author: "Dabbie Neo"
-date: "`r Sys.Date()`"
+date: 4/14/2023
+date-modified: "`r Sys.Date()`"
 ---
 
 # 1. Getting Started
@@ -21,9 +22,10 @@ exam_data <- read_csv("data/Exam_data.csv")
 ```
 
 # 2. Exercises
+
 ## Plotting a simple chart
 
-### Using geombar() to plot a bar chart 
+### Using geombar() to plot a bar chart
 
 ```{r}
 ggplot(data=exam_data, 
@@ -51,7 +53,8 @@ ggplot(data=exam_data,
 ```
 
 ## Working with Theme
-### Changing theme of bar chart 
+
+### Changing theme of bar chart
 
 ```{r}
 ggplot(data=exam_data, aes(x=RACE)) +
@@ -64,8 +67,10 @@ ggplot(data=exam_data, aes(x=RACE)) +
     panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "white"), 
     panel.grid.minor = element_line(size = 0.25, linetype = 'solid', colour = "white"))
 ```
+
 ## Designing Data-driven Graphics for Analysis
-### Exercise 1 
+
+### Exercise 1
 
 ```{r}
 ggplot(data=exam_data, 

@@ -1,9 +1,11 @@
 ---
 title: "Hands-on Exercise 2: Creating Elegant Graphics with ggplot2"
 author: "Dabbie Neo"
+date: 4/29/2023
+date-modified: "`r Sys.Date()`"
 ---
 
-# 1. Getting Started 
+# 1. Getting Started
 
 ## Install and launching R packages
 
@@ -15,7 +17,7 @@ pacman::p_load(ggrepel, patchwork,
                tidyverse) 
 ```
 
-## Importing the data 
+## Importing the data
 
 ```{r}
 exam_data <- read_csv("data/Exam_data.csv")
@@ -24,6 +26,7 @@ exam_data <- read_csv("data/Exam_data.csv")
 # 2. Exercises
 
 ## 2.1 Working with ggrepel
+
 ggrepel helps to repel overlapping text
 
 ```{r}
@@ -40,6 +43,7 @@ ggplot(data=exam_data,
                   ylim=c(0,100)) +
   ggtitle("English scores versus Maths scores for Primary 3")
 ```
+
 Simply replace geom_text() by geom_text_repel() and geom_label() by geom_label_repel.
 
 ```{r}
@@ -55,6 +59,7 @@ ggplot(data=exam_data,
                   ylim=c(0,100)) +
   ggtitle("English scores versus Maths scores for Primary 3")
 ```
+
 ## 2.2 Working with Themes
 
 8 Built-in Themes: theme_gray(), theme_bw(), theme_classic(), theme_dark(), theme_light(), theme_linedraw(), theme_minimal(), and theme_void()
@@ -69,7 +74,9 @@ ggplot(data=exam_data,
   theme_gray() +
   ggtitle("Distribution of Maths scores")
 ```
+
 ### Using ggtheme package
+
 In the example below, The Economist theme is used.
 
 ```{r}
@@ -82,8 +89,10 @@ ggplot(data=exam_data,
   ggtitle("Distribution of Maths scores") +
   theme_economist()
 ```
+
 ### Using hrbthems package
-Provides a base theme that focuses on typographic elements, including where various labels are placed and fonts used. 
+
+Provides a base theme that focuses on typographic elements, including where various labels are placed and fonts used.
 
 ```{r}
 ggplot(data=exam_data, 
@@ -99,8 +108,8 @@ ggplot(data=exam_data,
 ```
 
 ## 2.3 Beyond Single Graph
-Create composite plot by combining multiple graphs
-First, create the three statistical graphics below
+
+Create composite plot by combining multiple graphs First, create the three statistical graphics below
 
 ```{r}
 p1 <- ggplot(data=exam_data, 
@@ -131,17 +140,16 @@ p3 <- ggplot(data=exam_data,
                   ylim=c(0,100)) +
   ggtitle("English scores versus Maths scores for Primary 3")
 ```
+
 ### Working with patchwork
-Creating patchwork
-Use ‘+’ to create two columns layout
-Use ‘/’ to create two row layout (stack)
-Use ‘()’ to create subplot group
-Use ‘|’ to place the plots beside each other
+
+Creating patchwork Use '+' to create two columns layout Use '/' to create two row layout (stack) Use '()' to create subplot group Use '\|' to place the plots beside each other
 
 ```{r}
 ((p1 / p2) | p3) + 
   plot_annotation(tag_levels = 'I')   #creating a composite figure with tag
 ```
+
 Combining patchwork and themes
 
 ```{r}
@@ -157,4 +165,3 @@ p3 + inset_element(p2,
                    right = 0.5, 
                    top = 1)
 ```
-
