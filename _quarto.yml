@@ -12,6 +12,10 @@ website:
     tools: 
       - icon: github
         href: https://github.com/dneoo/ISSS608-VAA
+        text: "Github"
+      - icon: bar-chart-fill
+        href: https://public.tableau.com/app/profile/dabbie.neo
+        text: "Tableau"
     
     style: "docked"
     search: true
