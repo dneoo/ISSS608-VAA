@@ -1,7 +1,19 @@
 ---
 title: "Visual Analytics and Application Learning Journey"
----
 
+listing:
+  type: grid
+  max-items: 3
+  image-placeholder: placeholder.png
+  grid-item-border: True 
+  contents:
+    - "Hands-on_Ex/*/*.qmd"
+    - "Take-Home_Ex/*/*.qmd"
+    - "In-class_Ex/*/*.qmd"
+  sort: 
+    - "date desc"
+toc: false
+---
 Welcome to **ISSS608 Visual Analytics and Applications**.
 
 In this website, you will find my coursework prepared for this course.
