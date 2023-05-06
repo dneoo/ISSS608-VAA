@@ -1,0 +1,97 @@
+---
+title: "In-Class Exercise 4"
+author: "Dabbie Neo"
+date: 5/6/2023
+date-modified: "`r Sys.Date()`"
+execute: 
+  echo: true
+  eval: true
+  warning: false 
+---
+
+# 1. Getting Started
+
+## Install and launching R packages
+
+```{r}
+pacman::p_load(rstatix,gt,patchwork,tidyverse,ggstatsplot)
+```
+
+## Importing data
+
+```{r}
+exam_data <- read_csv("data/Exam_data.csv")
+```
+
+## 2. Visualising Normal Distribution
+
+## 2.1 Using QQplot
+
+::: panel-tabset
+## The plot
+
+```{r}
+#| echo: false
+#| fig-width: 4
+#| fig-height: 4
+ggplot(exam_data,
+       aes(sample=ENGLISH))+
+  stat_qq() +
+  stat_qq_line()
+```
+
+## The code chunk
+
+```{r}
+#| eval: false
+#| fig-width: 4
+#| fig-height: 4
+ggplot(exam_data,
+       aes(sample=ENGLISH))+
+  stat_qq() +
+  stat_qq_line()
+```
+:::
+
+::: callout-note
+We can see that the points deviate significantly from the straight diagonal line. This is a clear indication that the set of data is not normally distributed.
+:::
+
+## 2.1.1 Combining statistical graph and analysis table
+
+::: panel-tabset
+## The plot
+
+```{r}
+#| echo: false
+#| fig-width: 4
+#| fig-height: 4
+qq <- ggplot(exam_data,
+       aes(sample=ENGLISH))+
+  stat_qq() +
+  stat_qq_line()
+
+sw_t <- exam_data %>%
+  shapiro_test(ENGLISH) %>%
+  gt() #make it to gt format to give a nice table
+
+tmp <- tempfile(fileext = '.png')
+gtsave(sw_t, tmp)
+table_png <- png::readPNG(tmp,native=TRUE) #sw_t cant be recognised by patchwork so change it to png
+
+qq + table_png
+```
+
+## The code chunk
+
+```{r}
+#| eval: false
+#| fig-width: 4
+#| fig-height: 4
+ggplot(exam_data,
+       aes(sample=ENGLISH))+
+  stat_qq() +
+  stat_qq_line()
+```
+:::
+
