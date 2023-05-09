@@ -94,4 +94,3 @@ ggplot(exam_data,
   stat_qq_line()
 ```
 :::
-

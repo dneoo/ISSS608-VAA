@@ -1,0 +1,420 @@
+---
+title: "Take-Home_Ex01"
+author: "Dabbie Neo"
+date: 5/5/2023
+date-modified: "`r Sys.Date()`"
+execute: 
+  echo: true
+  eval: true
+  warning: false 
+---
+
+# 1. Objective
+
+This exercise aims to reveal the demographic, financial characteristics and hidden patterns of the City of Engagement, using static and interactive statistical graphics methods. The data will be processed using appropriate tidyverse packages and visualization will be designed using ggplot2 and its extensions.
+
+# 2. Data Source
+
+For the purpose of this study, two data sets will be used. They are
+
+***Participants.csv***
+
+Contains information about the residents of City of Engagement that have agreed to participate in this study.
+
+***FinancialJournal.csv***
+
+Contains information about financial transactions.
+
+# 3. Data Preparation
+
+## 3.1 Install and launching R packages
+
+The code chunk below uses p_load() of pacman package to check if packages are installed in the computer. If they are, then they will be launched into R. The R packages installed are:
+
+-   [plotly](https://plotly.com/r/): R library for plotting interactive statistical graphs.
+
+-   ggstatsplot: Used for creating graphics with details from statistical tests.
+
+-   gganimate
+
+-   gifski
+
+-   knitr: Used for dynamic report generation
+
+-   patchwork: Used to combine plots
+
+-   ggdist: Used for visualisation distribution and uncertainty
+
+-   ggthemes: Provide additional themes for ggplot2
+
+-   [tidyverse](https://www.tidyverse.org/): a family of modern R packages specially designed to support data science, analysis and communication task including creating static statistical graphs.
+
+```{r}
+pacman::p_load(plotly, ggstatsplot, knitr, patchwork, ggdist, ggthemes, tidyverse,gt,rstatix)
+```
+
+## 3.2 Importing the Data
+
+```{r}
+participants <- read_csv("data/Participants.csv")
+financial <- read_csv("data/FinancialJournal.csv")
+```
+
+## 3.3 Data Wrangling
+
+Check for missing values in each column in participants data
+
+```{r}
+# Check for missing values in each column
+colSums(is.na(participants))
+```
+
+Check for missing values in each column in financial data
+
+```{r}
+# Check for missing values in each column
+colSums(is.na(financial))
+```
+
+Looking at the data below, there are a few data issues
+
+```{r}
+head(participants)
+```
+
+```{r}
+head(financial)
+```
+
+**ISSUE 1: INACCUATE DATA/MODELLING FORMAT**
+
+*participantId* is in `<dbl>` format. It needs to be converted to `<chr>`
+
+```{r}
+participants$participantId <- as.character(participants$participantId)
+str(participants)
+
+financial$participantId <- as.character(financial$participantId)
+#str(financial)
+```
+
+**ISSUE 2: CHANGE TIMESTAMP TO USABLE DATA**
+
+Extract the month and year using lubridate.
+
+```{r}
+#financial$month_year <- format(financial$timestamp, "%Y/%m")
+
+financial$month_year <- floor_date(as.POSIXct(financial$timestamp), unit = "month")
+financial$month_year <- format(financial$month_year, format = "%m/%Y")
+
+# Convert month_year to date format
+financial$month_year <- as.Date(paste0("01/", financial$month_year), format = "%d/%m/%Y")
+
+head(financial)
+```
+
+**ISSUE 3:** DUPLICATES FOUND IN DATA
+
+```{r}
+#| echo: false
+#Check for duplicates in financial table
+print(sum(duplicated(financial)))
+
+#Check for duplicates in participants table
+print(sum(duplicated(participants)))
+
+#Remove duplicates in financial table
+financial_unique <- distinct(financial)
+nrow(financial_unique)
+```
+
+**ISSUE 4: DATA IS SEGREGATED BY INDIVDUAL ENTRIES**
+
+Group the entries by participants taking into consideration time and category and summing up the amount.
+
+```{r}
+
+# Group by participant_id and month_year, subgroup by category, then summarize by amount
+new_financial <- financial_unique %>%
+  group_by(participantId, month_year, category) %>%
+  summarise(total_amount = sum(amount)) %>%
+  mutate(total_amount = round(total_amount, 2))
+head(new_financial)
+
+# Pivot the table so that the categories appear as columns
+new_financial_wide <- new_financial %>% 
+  pivot_wider(names_from = category, values_from = total_amount)
+new_financial_wide
+
+# Check if any columns has missing value 
+colSums(is.na(new_financial_wide))
+
+# replace missing values with 0
+new_financial_wide <- new_financial_wide %>% 
+  mutate_all(~replace_na(., 0))
+new_financial_wide
+```
+
+**ISSUE 5: DATA DOES NOT SHOW FINANCIAL HEALTH AND COST OF LIVING**
+
+*Financial Health = Sum (Wage + Education + Shelter + Recreation + Food + RentAdjustment)*
+
+```{r}
+new_financial_wide$Financial_health <- rowSums(new_financial_wide[, c("Wage", "Education","Shelter","Recreation","Food","RentAdjustment" )], na.rm = TRUE)
+new_financial_wide
+
+```
+
+*Cost_of_living = Sum(Education + Shelter + Recreation + Food)*
+
+```{r}
+new_financial_wide$Cost_of_living <- rowSums(new_financial_wide[,c("Education","Shelter","Recreation","Food")], na.rm = TRUE)
+new_financial_wide$Cost_of_living <- new_financial_wide$Cost_of_living * -1
+head(new_financial_wide)
+```
+
+**ISSUE 6: AGE DATA IS DISAGGREGATED**
+
+Bin age data by groups of 10.
+
+```{r}
+participants <- participants %>%
+  mutate(age_bin = cut(age, 
+                       breaks = c(seq(max(age), min(age) - 10, -10), min(age)), 
+                       right = FALSE, 
+                       include.lowest = TRUE, 
+                       labels = NULL))
+
+# Replace the numeric bin labels with age ranges
+participants$age_bin <- sub("(\\d+)-(\\d+)", "\\1-\\2", as.character(participants$age_bin))
+participants$age_bin[participants$age_bin == paste0(max(participants$age_bin), "-")] <- paste0("<= ", max(as.numeric(levels(participants$age_bin)))-1)
+
+# Display the first 10 rows of the new data frame with age_bin column
+head(participants, 10)
+```
+
+**ISSUE 7: PARTICIPANTS DATA AND FINANCIAL DATA ARE SEPARATED**
+
+Combine the two tables together by *participantId*
+
+```{r}
+combined_table <- merge(participants, new_financial_wide, by = "participantId")
+head(combined_table)
+```
+
+# 4. Data Analysis
+
+## 4.1 Demographic Analysis
+
+### 4.1.1 Income Distribution
+
+We will first take a look at the Income Distribution using histogram and boxplot.
+
+```{r}
+#computing summary statistics of mean, median and lower and upper whiskers in boxplot
+wage_mean <- round(mean(combined_table$Wage))
+wage_median <- round(median(combined_table$Wage))
+ymax <- as.numeric(round((IQR(combined_table$Wage)*1.5) +
+                quantile(combined_table$Wage,0.75)))
+ymin <- as.integer(min(combined_table$Wage))
+
+#plotting histogram
+h_wage <- ggplot(data = combined_table, aes(y = Wage)) + 
+  geom_histogram(color="black", fill="azure4", binwidth = 500) + 
+  scale_y_continuous(limits = c(0, 25000), labels = scales::comma) +
+  scale_x_continuous(limits = c(0, 1500), labels = scales::comma) +
+  labs(x = "Number of participants", y = "Wage") +
+  geom_hline(aes(yintercept = wage_mean), col="darkblue", linewidth=0.5) +
+  annotate("text", x=1350, y=6000, label="Mean wage:", 
+           size=2.5, color="darkblue") +
+  annotate("text", x=1350, y=5000, label=format(wage_mean, big.mark = ","),
+           size=2.5, color="darkblue") +
+  geom_hline(aes(yintercept = wage_median), col="lightpink4", linewidth=0.5) +
+  annotate("text", x=1400, y=3000, label="Median wage:", 
+           size=2.5, color="lightpink4") +
+  annotate("text", x=1400, y=1300, label=format(wage_median, big.mark = ","),
+           size=2.5, color="lightpink4") +
+  theme(axis.text.x = element_text(size=8), axis.text.y = element_text(size=8))
+h_wage
+#plotting boxplot
+b_wage <- ggplot(data = combined_table, aes(y = Wage)) + 
+  geom_boxplot(outlier.colour="firebrick", outlier.shape=16,
+               outlier.size=0.6, notch=FALSE, size=0.25) + 
+  labs(y = "", x = "") + 
+  scale_y_continuous(limits = c(0,25000), labels = scales::comma) +
+  theme(axis.text = element_blank(), axis.ticks = element_blank()) + 
+  stat_boxplot(geom="errorbar", width=0.3, size=0.2) + 
+  annotate("text", x=0.25, y=ymax, label=format(ymax, big.mark = ","), 
+           size=2.5, color="lightpink4") +
+  annotate("text", x=0.25, y=ymin-300, label=format(ymin, big.mark = ","), 
+           size=2.5, color="lightpink4") +
+ 
+   annotate("text", x=-0.4, y=3000, label="Median wage:", 
+           size=2.5, color="lightpink4", angle=270) +
+  
+  annotate("text", x=-0.45, y=3000, label=format(wage_median, big.mark = ","),
+           size=2.5, color="lightpink4", angle =270)
+
+# Combine the 2 plots 
+
+wage_distri <- (h_wage | b_wage) + plot_layout(widths = c(4,2.5))
+
+wage_distri + plot_annotation(title = "Distribution of Wage", 
+                               subtitle = str_wrap("There is a right-skewed distribution i.e. mean wage > median wage. There is also a large number of outliers (wage >$9,110).", width =60),
+                               theme = theme(
+                                 plot.title = element_text(size = 18),
+                                 plot.subtitle = element_text(size = 12)))
+```
+
+The shape of the wage distribution shows that there is an income inequality in the city.
+
+```{r}
+meanwage_table <- combined_table %>%
+  group_by(participantId) %>%
+  summarize(mean_wage = mean(Wage))
+meanwage_table
+```
+
+```{r}
+#| echo: false
+#| fig-width: 4
+#| fig-height: 4
+qq <- ggplot(meanwage_table,
+       aes(sample=mean_wage))+
+  stat_qq() +
+  stat_qq_line()
+
+sw_t <- meanwage_table %>%
+  shapiro_test(mean_wage) %>%
+  gt() #make it to gt format to give a nice table
+
+tmp <- tempfile(fileext = '.png')
+gtsave(sw_t, tmp)
+table_png <- png::readPNG(tmp,native=TRUE) #sw_t cant be recognised by patchwork so change it to png
+
+qq + table_png
+```
+
+Using the Normal Quartile Plot (Q-Q plot), we can see that the points deviate significantly from the straight diagonal line. Looking at the results of the Shaprio-test above suggest that there is sufficient statistical evidence to reject the null hypothesis at 95% confidence. Thus, the set of data is not normally distributed.
+
+Also, comparing this to the Lorenze curve, we can see that the city falls under the "More Unequal", thereby proving that the city has high level of income inequality.
+
+## 4.1.2
+
+```{r}
+#computing summary statistics of mean, median and lower and upper whiskers in boxplot
+age_mean <- round(mean(combined_table$age))
+age_median <- round(median(combined_table$age))
+ymax <- as.numeric(round((IQR(combined_table$age)*1.5) +
+                quantile(combined_table$age,0.75)))
+ymin <- as.integer(min(combined_table$age))
+
+#plotting histogram
+h_age <- ggplot(data = combined_table, aes(x = age)) + 
+  geom_histogram(color="black", fill="azure4", binwidth = 4) + 
+  scale_x_continuous(limits = c(0,70), labels = scales::comma) +
+  labs(x = "Age", y = "Number of participants") +
+  geom_vline(aes(xintercept = age_mean), col="black", linewidth=1) +
+  annotate("text", x=42, y=1700, label="Mean age:", 
+           size=2, color="black") +
+  annotate("text", x=42, y=1600, label=format(age_mean, big.mark = ","),
+           size=2, color="black") +
+  geom_vline(aes(xintercept = age_median), col="black", linewidth=1) +
+  annotate("text", x=35, y=1700, label="Median age", 
+           size=2, color="black") +
+  annotate("text", x=35, y=1600, label=format(age_median, big.mark = ","),
+           size=2, color="black") +
+  theme(axis.text.x = element_text(size=8))
+
+#plotting boxplot
+b_age <- ggplot(data = combined_table, aes(y = age)) + 
+  geom_boxplot(outlier.colour="firebrick", outlier.shape=16,
+               outlier.size=1, notch=FALSE) + 
+  coord_flip() + labs(y = "", x = "") + 
+  scale_y_continuous(limits = c(0,70), labels = scales::comma) +
+  theme(axis.text = element_blank(), axis.ticks = element_blank()) + 
+  stat_boxplot(geom="errorbar", width=0.5) + 
+  annotate("text", x=0.35, y=ymax, label=format(ymax, big.mark = ","), 
+           size=3, color="lightpink4") +
+  annotate("text", x=0.35, y=ymin, label=format(ymin, big.mark = ","), 
+           size=3, color="lightpink4")
+
+age_distri <- b_age / h_age + plot_layout(heights = c(1, 4)) 
+
+age_distri + plot_annotation(title = "Distribution of Age", 
+                               subtitle = "There is a normal distribution i.e. mean age = median age",
+                               theme = theme(
+                                 plot.title = element_text(size = 18),
+                                 plot.subtitle = element_text(size = 12)))
+```
+
+## 4.1.3 Financial Health Observation
+
+Cumulative Financial Health
+
+```{r}
+# Create a data frame
+df_totalfh <- combined_table %>%
+  group_by(month_year) %>%
+  summarise(total_fh = sum(Financial_health))
+
+head(df_totalfh)
+```
+
+
+```{r}
+library(scales)
+
+# calculate cumulative financial health
+df_totalfh <- df_totalfh %>% 
+  mutate(cumulative_fh = cumsum(total_fh))
+
+df_totalfh
+
+# Calculate y-axis breaks and labels
+y_breaks <- pretty_breaks(n = 5)(range(df_totalfh$cumulative_fh))
+y_labels <- dollar_format(prefix = "$")(y_breaks)
+
+# plot graph
+ggplot(data = df_totalfh, aes(x = month_year, y = cumulative_fh)) +
+  geom_line() +
+  labs(x = "Month/Year", y = "Cumulative Financial Health", title = "Cumulative Financial Health Over Time") +
+  stat_summary(geom = "line", fun = "cumsum", linetype = "dashed") +
+  scale_y_continuous(breaks = y_breaks, labels = y_labels) +
+  scale_x_date(date_breaks = "1 month", date_labels = "%m/%Y") +
+  theme(plot.title = element_text(face = "bold"))
+
+```
+
+
+```
+
+combined_table_summarized
+# Calculate y-axis breaks and labels
+y_breaks <- pretty_breaks(n = 5)(range(df_cumfh$cumulative_fh))
+y_labels <- dollar_format(prefix = "$")(y_breaks)
+
+ggplot(df_cumfh, aes(x = month_year, y = cumulative_fh)) +
+  geom_point() +
+  geom_line() +
+  labs(x = "Month Year", y = "Cumulative Financial Health") +
+  scale_y_continuous(breaks = y_breaks, labels = y_labels) +
+  theme_classic()
+
+ 
+```
+
+Financial Health vs mean financial health (boxplot and line)
+
+Expenses overtime 
+
+Income overtime 
+
+Income vs Cost of Living overtime 
+
+
+
+
+
+
