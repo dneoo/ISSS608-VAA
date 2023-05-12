@@ -50,7 +50,7 @@ The code chunk below uses p_load() of pacman package to check if packages are in
 -   [tidyverse](https://www.tidyverse.org/): a family of modern R packages specially designed to support data science, analysis and communication task including creating static statistical graphs.
 
 ```{r}
-pacman::p_load(plotly, ggstatsplot, knitr, patchwork, ggdist, ggthemes, tidyverse,gt,rstatix)
+pacman::p_load(plotly, ggstatsplot, knitr, patchwork, ggdist, ggthemes, tidyverse,gt,rstatix,ggpmisc,ggridges,gganimate,viridis,ggiraph,reshape2,scales)
 ```
 
 ## 3.2 Importing the Data
@@ -145,7 +145,6 @@ head(new_financial)
 # Pivot the table so that the categories appear as columns
 new_financial_wide <- new_financial %>% 
   pivot_wider(names_from = category, values_from = total_amount)
-new_financial_wide
 
 # Check if any columns has missing value 
 colSums(is.na(new_financial_wide))
@@ -153,7 +152,7 @@ colSums(is.na(new_financial_wide))
 # replace missing values with 0
 new_financial_wide <- new_financial_wide %>% 
   mutate_all(~replace_na(., 0))
-new_financial_wide
+head(new_financial_wide)
 ```
 
 **ISSUE 5: DATA DOES NOT SHOW FINANCIAL HEALTH AND COST OF LIVING**
@@ -162,7 +161,7 @@ new_financial_wide
 
 ```{r}
 new_financial_wide$Financial_health <- rowSums(new_financial_wide[, c("Wage", "Education","Shelter","Recreation","Food","RentAdjustment" )], na.rm = TRUE)
-new_financial_wide
+head(new_financial_wide)
 
 ```
 
@@ -212,6 +211,11 @@ head(combined_table)
 We will first take a look at the Income Distribution using histogram and boxplot.
 
 ```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 11
+#| fig-width: 12.5
+
 #computing summary statistics of mean, median and lower and upper whiskers in boxplot
 wage_mean <- round(mean(combined_table$Wage))
 wage_median <- round(median(combined_table$Wage))
@@ -220,51 +224,49 @@ ymax <- as.numeric(round((IQR(combined_table$Wage)*1.5) +
 ymin <- as.integer(min(combined_table$Wage))
 
 #plotting histogram
-h_wage <- ggplot(data = combined_table, aes(y = Wage)) + 
+h_wage <- ggplot(data = combined_table, aes(x = Wage)) + 
   geom_histogram(color="black", fill="azure4", binwidth = 500) + 
-  scale_y_continuous(limits = c(0, 25000), labels = scales::comma) +
-  scale_x_continuous(limits = c(0, 1500), labels = scales::comma) +
-  labs(x = "Number of participants", y = "Wage") +
-  geom_hline(aes(yintercept = wage_mean), col="darkblue", linewidth=0.5) +
-  annotate("text", x=1350, y=6000, label="Mean wage:", 
-           size=2.5, color="darkblue") +
-  annotate("text", x=1350, y=5000, label=format(wage_mean, big.mark = ","),
-           size=2.5, color="darkblue") +
-  geom_hline(aes(yintercept = wage_median), col="lightpink4", linewidth=0.5) +
-  annotate("text", x=1400, y=3000, label="Median wage:", 
-           size=2.5, color="lightpink4") +
-  annotate("text", x=1400, y=1300, label=format(wage_median, big.mark = ","),
-           size=2.5, color="lightpink4") +
-  theme(axis.text.x = element_text(size=8), axis.text.y = element_text(size=8))
-h_wage
+  scale_x_continuous(limits = c(0,25000), labels = scales::comma) +
+  labs(x = "Wage", y = "Number of participants") +
+  geom_vline(aes(xintercept = wage_mean), col="darkblue", linewidth=0.75) +
+  annotate("text", x=5500, y=1700, label="Mean wage:", 
+           size=2, color="darkblue") +
+  annotate("text", x=5500, y=1600, label=format(wage_mean, big.mark = ","),
+           size=2, color="darkblue") +
+  geom_vline(aes(xintercept = wage_median), col="lightpink4", linewidth=0.75) +
+  annotate("text", x=2000, y=1700, label="Median wage", 
+           size=2, color="lightpink4") +
+  annotate("text", x=2000, y=1600, label=format(wage_median, big.mark = ","),
+           size=2, color="lightpink4") +
+  theme(axis.text.x = element_text(size=8))
+
 #plotting boxplot
 b_wage <- ggplot(data = combined_table, aes(y = Wage)) + 
   geom_boxplot(outlier.colour="firebrick", outlier.shape=16,
-               outlier.size=0.6, notch=FALSE, size=0.25) + 
-  labs(y = "", x = "") + 
+               outlier.size=0.6, notch=FALSE, width = 0.4) + 
+  coord_flip() + labs(y = "", x = "") + 
   scale_y_continuous(limits = c(0,25000), labels = scales::comma) +
   theme(axis.text = element_blank(), axis.ticks = element_blank()) + 
-  stat_boxplot(geom="errorbar", width=0.3, size=0.2) + 
-  annotate("text", x=0.25, y=ymax, label=format(ymax, big.mark = ","), 
-           size=2.5, color="lightpink4") +
-  annotate("text", x=0.25, y=ymin-300, label=format(ymin, big.mark = ","), 
-           size=2.5, color="lightpink4") +
- 
-   annotate("text", x=-0.4, y=3000, label="Median wage:", 
-           size=2.5, color="lightpink4", angle=270) +
-  
-  annotate("text", x=-0.45, y=3000, label=format(wage_median, big.mark = ","),
-           size=2.5, color="lightpink4", angle =270)
+  stat_boxplot(geom="errorbar", width=0.45) + 
+  annotate("text", x=0.35, y=ymax, label=format(ymax, big.mark = ","), 
+           size=2, color="lightpink4") +
+  annotate("text", x=0.35, y=ymin, label=format(ymin, big.mark = ","), 
+           size=2, color="lightpink4") +
+  annotate("text", x=-0.25, y=3800, label=format(wage_median, big.mark = ","),
+           size=2, color="lightpink4") +
+  annotate("text", x=-0.25, y=2000, label="Median wage =",
+           size=2, color="lightpink4")
 
-# Combine the 2 plots 
+# combine the 2 plots 
 
-wage_distri <- (h_wage | b_wage) + plot_layout(widths = c(4,2.5))
+wage_distri <- b_wage / h_wage + plot_layout(heights = c(1, 4)) 
 
 wage_distri + plot_annotation(title = "Distribution of Wage", 
                                subtitle = str_wrap("There is a right-skewed distribution i.e. mean wage > median wage. There is also a large number of outliers (wage >$9,110).", width =60),
                                theme = theme(
                                  plot.title = element_text(size = 18),
                                  plot.subtitle = element_text(size = 12)))
+
 ```
 
 The shape of the wage distribution shows that there is an income inequality in the city.
@@ -273,13 +275,19 @@ The shape of the wage distribution shows that there is an income inequality in t
 meanwage_table <- combined_table %>%
   group_by(participantId) %>%
   summarize(mean_wage = mean(Wage))
-meanwage_table
+head(meanwage_table)
 ```
 
 ```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 11
+#| fig-width: 12.5
+
 #| echo: false
 #| fig-width: 4
 #| fig-height: 4
+
 qq <- ggplot(meanwage_table,
        aes(sample=mean_wage))+
   stat_qq() +
@@ -302,7 +310,23 @@ Also, comparing this to the Lorenze curve, we can see that the city falls under 
 
 ## 4.1.2
 
+Income by Age
+
+Let's find out of there if income is affected by age. When you are older, you are likely to earn more. 
+
+To compare the income level across ages, we will test the null hypothesis:
+
+H0: the mean income across different age groups are the same
+H1: the mean income across different age groups are different
+
+To start the confirmatory data analysis, we first perform the normality assumption test for the distribution of income and age. 
+
 ```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 11
+#| fig-width: 12.5
+
 #computing summary statistics of mean, median and lower and upper whiskers in boxplot
 age_mean <- round(mean(combined_table$age))
 age_median <- round(median(combined_table$age))
@@ -315,15 +339,15 @@ h_age <- ggplot(data = combined_table, aes(x = age)) +
   geom_histogram(color="black", fill="azure4", binwidth = 4) + 
   scale_x_continuous(limits = c(0,70), labels = scales::comma) +
   labs(x = "Age", y = "Number of participants") +
-  geom_vline(aes(xintercept = age_mean), col="black", linewidth=1) +
-  annotate("text", x=42, y=1700, label="Mean age:", 
+  geom_vline(aes(xintercept = age_mean), col="black", linewidth=0.75) +
+  annotate("text", x=45, y=1700, label="Mean age:", 
            size=2, color="black") +
-  annotate("text", x=42, y=1600, label=format(age_mean, big.mark = ","),
+  annotate("text", x=45, y=1600, label=format(age_mean, big.mark = ","),
            size=2, color="black") +
-  geom_vline(aes(xintercept = age_median), col="black", linewidth=1) +
-  annotate("text", x=35, y=1700, label="Median age", 
+  geom_vline(aes(xintercept = age_median), col="black", linewidth=0.75) +
+  annotate("text", x=30, y=1700, label="Median age", 
            size=2, color="black") +
-  annotate("text", x=35, y=1600, label=format(age_median, big.mark = ","),
+  annotate("text", x=30, y=1600, label=format(age_median, big.mark = ","),
            size=2, color="black") +
   theme(axis.text.x = element_text(size=8))
 
@@ -336,9 +360,9 @@ b_age <- ggplot(data = combined_table, aes(y = age)) +
   theme(axis.text = element_blank(), axis.ticks = element_blank()) + 
   stat_boxplot(geom="errorbar", width=0.5) + 
   annotate("text", x=0.35, y=ymax, label=format(ymax, big.mark = ","), 
-           size=3, color="lightpink4") +
+           size=2, color="lightpink4") +
   annotate("text", x=0.35, y=ymin, label=format(ymin, big.mark = ","), 
-           size=3, color="lightpink4")
+           size=2, color="lightpink4")
 
 age_distri <- b_age / h_age + plot_layout(heights = c(1, 4)) 
 
@@ -347,7 +371,77 @@ age_distri + plot_annotation(title = "Distribution of Age",
                                theme = theme(
                                  plot.title = element_text(size = 18),
                                  plot.subtitle = element_text(size = 12)))
+
+wage_age_distri <- (wage_distri | age_distri) + plot_layout(widths = c(8,8))
+
+wage_age_distri + plot_annotation(title = "Distribution of Income and Age", 
+                               theme = theme(
+                                 plot.title = element_text(size = 16)))
 ```
+
+Distribution by Income and Age 
+
+Normality assumption test for Income and Age. 
+
+Based on the Shapiro test, the p-value < alpha value of 0.05, thus there is sufficient statistical evidence to conclude that the distribution of income and age are not normally distributed. Thus we will use the non-parametric test. 
+
+Plot the qqplot for income and age 
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 11
+#| fig-width: 12.5
+
+#| echo: false
+#| fig-width: 4
+#| fig-height: 4
+
+# Create age table 
+unique_participants <- unique(subset(combined_table, select = c("participantId", "age")))
+head(unique_participants)
+
+qq_age <- ggplot(unique_participants,
+       aes(sample=age))+
+  stat_qq() +
+  stat_qq_line()
+
+sw_t_age <- unique_participants %>%
+  shapiro_test(age) %>%
+  gt() #make it to gt format to give a nice table
+
+tmp_age <- tempfile(fileext = '.png')
+gtsave(sw_t_age, tmp_age)
+table_png_age <- png::readPNG(tmp_age,native=TRUE) #sw_t cant be recognised by patchwork so change it to png
+
+qq_age + table_png_age
+
+```
+
+Oneway ANOVA Test
+
+To test the null hypothesis, we performed the non-parametric test.
+
+```{r}
+ggbetweenstats(
+  data = combined_table,
+  x = age_bin, 
+  y = Wage,
+  type = "np",
+  mean.ci = TRUE, 
+  pairwise.comparisons = TRUE, 
+  pairwise.display = "s",
+  p.adjust.method = "fdr",
+  messages = FALSE,
+  ylim = c(0, 25000),
+  breaks = seq(0, 25000, 5000)
+) +
+ggtitle("Oneway ANNOVA - Income across different age")
+
+```
+The Kruskal-Wallis Test p-value is lower than the alpha values, thus there is sufficient statistical evidence to reject the null hypothesis and infer that the mean income across age is not the same. 
+
+Higher income median for those age 30-40. After the age of 40, the increase in age does not correspond with the increase in income. We can also see that the 2 highest points are from the opposite ends of the age spectrum. Even though these are outliers, this suggests that for the high-income tier, age is not the limiting factor. An individual does not have to be old to earn a higher income.
+
 
 ## 4.1.3 Financial Health Observation
 
@@ -362,15 +456,19 @@ df_totalfh <- combined_table %>%
 head(df_totalfh)
 ```
 
-
 ```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 11
+#| fig-width: 12.5
+
 library(scales)
 
 # calculate cumulative financial health
 df_totalfh <- df_totalfh %>% 
   mutate(cumulative_fh = cumsum(total_fh))
 
-df_totalfh
+head(df_totalfh)
 
 # Calculate y-axis breaks and labels
 y_breaks <- pretty_breaks(n = 5)(range(df_totalfh$cumulative_fh))
@@ -387,34 +485,303 @@ ggplot(data = df_totalfh, aes(x = month_year, y = cumulative_fh)) +
 
 ```
 
-
-```
-
-combined_table_summarized
-# Calculate y-axis breaks and labels
-y_breaks <- pretty_breaks(n = 5)(range(df_cumfh$cumulative_fh))
-y_labels <- dollar_format(prefix = "$")(y_breaks)
-
-ggplot(df_cumfh, aes(x = month_year, y = cumulative_fh)) +
-  geom_point() +
-  geom_line() +
-  labs(x = "Month Year", y = "Cumulative Financial Health") +
-  scale_y_continuous(breaks = y_breaks, labels = y_labels) +
-  theme_classic()
-
- 
-```
+From the figure above, we can tell that the city has cumulative savings across the months.
 
 Financial Health vs mean financial health (boxplot and line)
 
-Expenses overtime 
+```{r}
+p_fh <- ggplot(data = df_totalfh, aes(x = month_year, y = total_fh)) +
+  geom_boxplot() +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Dark2") +
+  labs(title = "Financial Health Over Time",
+       y = "Financial Health",
+       x = "Month/Year") +
+  theme(text = element_text(family = "Garamond"),
+        plot.title = element_text(hjust = 0.2, size = 12, face = 'bold'),
+        plot.margin = margin(20, 20, 20, 20),
+        legend.position = "bottom",
+        axis.text = element_text(size = 8, face = "bold"),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        axis.title.x = element_text(hjust = 0.5, size = 12, face = "bold", color = "#899499"),
+        axis.title.y = element_text(hjust = 0.5, size = 12, face = "bold", color = "#899499"))
 
-Income overtime 
+ggplotly(p_fh) # Use tooltip to show x and y values
+```
 
-Income vs Cost of Living overtime 
+Expenses overtime
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 11
+#| fig-width: 12.5
+
+# group the expenses by month year
+expenses_grouped <- combined_table %>%
+  group_by(month_year) %>%
+  summarize(total_recreation = mean(Recreation),
+            total_food = mean(Food),
+            total_shelter = mean(Shelter),
+            total_education = mean(Education))
+
+# plot the data using ggplot2
+p_expense <- ggplot(expenses_grouped, aes(x = month_year)) + 
+  geom_line(aes(y = total_recreation, color = "Recreation")) +
+  geom_line(aes(y = total_food, color = "Food")) +
+  geom_line(aes(y = total_shelter, color = "Shelter")) +
+  geom_line(aes(y = total_education, color = "Education")) +
+  labs(x = "Month/Year", y = "Mean Expenses($)") +
+  scale_y_continuous(limits = c(-1000, 0), 
+                      breaks = seq(-1000, 0, 2*100),
+                      labels = dollar_format(prefix = "$")) +
+  scale_x_date(date_breaks = "1 month", date_labels = "%m/%Y") +
+  ggtitle("Expenses Over time") +
+  scale_color_manual(values = c("Recreation" = "red", 
+                                "Food" = "blue", 
+                                "Shelter" = "green", 
+                                "Education" = "purple")) +
+  theme(plot.title = element_text(face = "bold"),
+        plot.margin = margin(0, 0, 0, 0)) 
+p_expense
+```
+
+```{r}
+expenses_grouped <- combined_table %>%
+  group_by(month_year) %>%
+  summarize(total_recreation = mean(Recreation),
+            total_food = mean(Food),
+            total_shelter = mean(Shelter),
+            total_education = mean(Education)) %>% 
+  pivot_longer(cols = c(total_recreation, total_food, total_shelter, total_education), names_to = "expense_type", values_to = "expense")
+head(expenses_grouped)
+```
+
+
+#CHECK WHY CANT PLOT
+```{r}
+# ggplot(data = expenses_grouped, aes(x = expense, y = expense_type, fill = after_stat(x))) +
+#   
+#   geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+#   
+#   theme_minimal() +
+#   
+#     labs(title = 'Expenses by Category Over Time: {frame_time}',
+#        y = "Type of Expense",
+#        x = "Total Expense") +
+#   
+#   theme(legend.position="none",
+#   text = element_text(family = "Garamond"),
+#   plot.title = element_text(face = "bold", size = 12),
+#   
+#   axis.title.x = element_text(size = 10, hjust = 1),
+#   axis.title.y = element_text(size = 10),
+#   axis.text = element_text(size = 8)) +
+#   
+#   scale_fill_viridis(name = "expense", option = "D") +
+# 
+#   transition_time(expenses_grouped$month_year) +
+#   ease_aes('linear')
+
+```
+
+Plotted the costs over time and it showed that food, rent and education remained stable over time, meaning these costs are fixed despite any fluations in income. In contrast, recreation expenses is high in March and decreases significantly from March to April and plateaus to a stable rate.
+
+Thus, we can conclude that recreation increases if there is an increase in income but will remain low if there is low income. Income overtime
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 11
+#| fig-width: 12.5
+
+# group the wage by month year
+wage_grouped <- combined_table %>%
+  group_by(month_year) %>%
+  summarize(mean_wage_bymonth = mean(Wage))
+
+# plot the data using ggplot2
+p_meanwage <- ggplot(wage_grouped, aes(x = month_year)) + 
+  geom_line(aes(y = mean_wage_bymonth)) +
+  labs(x = "Month/Year", y = "Mean Wage($)") +
+  scale_x_date(date_breaks = "1 month", date_labels = "%m/%Y") +
+  ggtitle("Expenses by Month/Year")
+
+```
+
+```{r}
+expenses_wage <- p_expense + p_meanwage + plot_layout(heights = c(80, 50)) 
+expenses_wage
+```
+
+In March, the mean income is peaked and dips significantly in April. Post April, the income remains relatively stable and starts to increase slightly in August. The fluctuations in the financial health and income is directly proportionate.
+
+As this is an agricultural city, the pay could be affected by the seasons and harvest.
+
+Wage vs Cost of Living overtime
+
+```{r}
+# Creating a table with Wage and Cost of Living by month_year
+
+# Group the data by month and find the corresponding means
+df_monthly <- combined_table %>%
+  group_by(month_year) %>%
+  summarise(mean_income = mean(Wage),
+            mean_cost_of_living = mean(Cost_of_living))
+# Melt the data frame to create a long format
+df_monthly_melt <- melt(df_monthly, id.vars = "month_year", variable.name = "variable", value.name = "value")
+  
+```
+
+#CHECK FOR THE XAXIS SCALE
+```{r}
+
+# Plot using ggplot2
+ggplot(df_monthly_melt, aes(x = month_year, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 25), alpha = 0.7) +
+  scale_fill_manual(name = "Legend", values = c("mean_income" = "blue", "mean_cost_of_living" = "red")) +
+  labs(x = "Month", y = "Mean", title = "Monthly Mean Income and Cost of Living") +
+  scale_x_date(date_breaks = "1 month", date_labels = "%m/%Y")  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.4, vjust = 0.5, size = 5)) 
+```
+Looking at the wage vs cost of living, we can see that on average, most citizens can cope with their cost of living as their mean wage (blue bars) is higher than the mean cost of living (red bars). Most citizens should still have savings monthly. 
+
+
+Observation on Education Level
+
+Education affects financial health and birth rate
+
+```{r}
+# Create a factor with the education levels in the desired order
+edu_levels <- c("Low", "HighSchoolOrCollege", "Bachelors", "Graduate")
+combined_table$educationLevel <- factor(combined_table$educationLevel, levels = edu_levels)
+
+# Create a box plot with separate panels for individuals with and without kids
+p_fh_kids <- ggplot(combined_table, aes(x = educationLevel, y = Financial_health, fill = haveKids)) +
+  geom_boxplot() +
+  stat_summary(aes(group = haveKids, color = haveKids), fun = mean, geom = "line", size = 0.5) + # add mean lines
+  stat_boxplot(geom='errorbar', width=0.25, coef=1.5, size=0.5) + # add error bars
+  scale_fill_manual(name = "haveKids", values = c("FALSE" = "grey", "TRUE" = "orange")) +
+  labs(title = "Boxplot of Financial Health and Education by Kids", x = "Education", y = "Financial Health") +
+  facet_wrap(~haveKids, ncol = 2) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+# Display the plot
+p_fh_kids
+
+```
+We observe here that education is positively correlated to wage and financial health of the citizens. The higher the education level, the better the financial health. Also, we can see that citizen with better financial health have kids. 
 
 
 
 
 
 
+
+
+Observation on Joviality
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 11
+#| fig-width: 12.5
+
+# Select columns by name for the correlation matrix
+cols <- c("joviality", "Wage", "Financial_health", "Cost_of_living", "age")
+
+# Plot the ggcorrmat
+ggstatsplot::ggcorrmat(
+  data = combined_table, 
+  cor.vars = cols, hc.order = TRUE, p.mat=p.mat,
+  title = "Joviality Correlation Table")
+
+```
+
+To understand what affects joviality, we plot out correlation charts of factors that society things will affect joviality -- financial health, Wage, Cost of living and age. However, unlike society norms, city of engagement seems to defer. None of the factors have correlation of more than 0.5. drop wage since is it highly correlated with financial health.
+
+Focus on financial_health and cost of living
+
+As presented below, there is a negative correlation between joviality and wage, expense, and savings.
+
+Joviality is affected by Financial health
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 11
+#| fig-width: 12.5
+
+# Create the plot
+ggplot(combined_table, aes(x = Financial_health, y = joviality)) +
+  geom_point() + # Scatter plot
+  geom_smooth(method = "loess", se = FALSE, colour = "red") + # Add smoother
+  scale_y_continuous(limits = c(0, 1)) # Set Y-axis limits to 0-1
+
+```
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 11
+#| fig-width: 12.5
+
+library(ggpmisc)
+# Compute the 25th and 75th percentiles of Financial_health
+q <- quantile(combined_table$Financial_health, probs = c(0.25, 0.75))
+
+# Create a new column "income_level" based on Financial_health percentiles
+combined_table$income_level <- ifelse(combined_table$Financial_health < q[1], "Low",
+                                      ifelse(combined_table$Financial_health > q[2], "High", "Middle"))
+
+# Specify the order of the income levels
+combined_table$income_level <- factor(combined_table$income_level,
+                                      levels = c("Low", "Middle", "High"))
+
+# Create the plot with facets and regression line equation
+ggplot(combined_table, aes(x = Financial_health, y = joviality)) +
+  geom_point() + # Scatter plot
+  geom_smooth(method = "lm", se = FALSE, colour = "red") + # Add smoother
+  scale_y_continuous(limits = c(0, 1)) + # Set Y-axis limits to 0-1
+  facet_wrap(~ income_level) + # Create facets by income level
+  stat_poly_eq(formula = y ~ x, aes(label = paste("R^2 = ", round(..r.squared.., 3))),
+               parse = TRUE, label.x = "right", label.y = 0.9, 
+               eq.with.lhs = FALSE, size = 3) + # Show R-squared only, adjust label position and decrease font size
+  theme(plot.margin = unit(c(1, 1, 1, 5), "lines")) # Adjust right margin to make room for equation
+
+
+```
+
+Even though correlation between joviality is weak (-0.35), we can observe the smooth red curve is relatively different across different income levels. It appears joviality has a strong correlation for lower income levels as compaeed to the rich. when broken down in health levels, it appears that joviality has the lowest correlation for middle income, the R2= 0.006. 
+
+However, 
+we also observed that there are poor people who have the highest joviality of 0.99 whereas for the top 
+5% citizens (in blue), all of them have a joviality score below 0.64. Thus, we can conclude that being rich 
+does not necessarily make citizens happy.
+
+Joviality is affected by Cost of Living
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 11
+#| fig-width: 12.5
+
+# Create the plot for Joviality vs Cost_of_living
+ggplot(combined_table, aes(x = Cost_of_living, y = joviality)) +
+  geom_point() + # Scatter plot
+  geom_smooth(method = "lm", se = FALSE, colour = "red") + # Add smoother
+  scale_y_continuous(limits = c(0, 1)) # Set Y-axis limits to 0-1
+  
+
+```
+
+Joviality vs expense_category 
+
+
+
+
+
+
+Recommendations

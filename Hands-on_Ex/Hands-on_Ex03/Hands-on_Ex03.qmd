@@ -144,4 +144,3 @@ Background colour of the tooltip is now white and the font colour is blue and bo
 :::
 
 ### 2.1.4 Displaying statistics on tooltip
-
