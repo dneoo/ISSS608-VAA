@@ -14,7 +14,7 @@ execute:
 ## Install and launching R packages
 
 ```{r}
-pacman::p_load(rstatix,gt,patchwork,tidyverse,ggstatsplot)
+pacman::p_load(rstatix,gt,patchwork,tidyverse,ggstatsplot,ggpubr)
 ```
 
 ## Importing data

@@ -1,0 +1,29 @@
+---
+title: "Jsonlite"
+author: "Dabbie Neo"
+date: 5/13/2023
+date-modified: "`r Sys.Date()`"
+execute: 
+  echo: true
+  eval: true
+  warning: false
+---
+
+```{r}
+pacman::p_load(jsonlite,tidygraph,ggraph,visNetwork,tidyverse)
+```
+
+```{r}
+MC1 <- jsonlite::fromJSON("data/MC1.json")
+```
+
+```{r}
+#Extract id, type and country and make it as a tibble database. use select to choose the fields you want and reorganise the data as you want
+MC1_nodes <- as_tibble(MC1$nodes) %>%
+  select(id, type, country)
+```
+
+```{r}
+MC1_edges <- as_tibble(MC1$links) %>%
+  select(source, target, type, weight, key)
+```

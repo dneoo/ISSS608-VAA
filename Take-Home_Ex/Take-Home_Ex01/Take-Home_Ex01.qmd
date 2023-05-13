@@ -429,7 +429,7 @@ ggbetweenstats(
   type = "np",
   mean.ci = TRUE, 
   pairwise.comparisons = TRUE, 
-  pairwise.display = "s",
+  pairwise.display = "ns",
   p.adjust.method = "fdr",
   messages = FALSE,
   ylim = c(0, 25000),
@@ -560,28 +560,28 @@ head(expenses_grouped)
 
 #CHECK WHY CANT PLOT
 ```{r}
-# ggplot(data = expenses_grouped, aes(x = expense, y = expense_type, fill = after_stat(x))) +
-#   
-#   geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
-#   
-#   theme_minimal() +
-#   
-#     labs(title = 'Expenses by Category Over Time: {frame_time}',
-#        y = "Type of Expense",
-#        x = "Total Expense") +
-#   
-#   theme(legend.position="none",
-#   text = element_text(family = "Garamond"),
-#   plot.title = element_text(face = "bold", size = 12),
-#   
-#   axis.title.x = element_text(size = 10, hjust = 1),
-#   axis.title.y = element_text(size = 10),
-#   axis.text = element_text(size = 8)) +
-#   
-#   scale_fill_viridis(name = "expense", option = "D") +
-# 
-#   transition_time(expenses_grouped$month_year) +
-#   ease_aes('linear')
+ # ggplot(data = expenses_grouped, aes(x = expense, y = expense_type, fill = after_stat(x))) +
+ #   
+ #   geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+ #  
+ #   theme_minimal() +
+ #  
+ #     labs(title = 'Expenses by Category Over Time: {frame_time}',
+ #        y = "Type of Expense",
+ #        x = "Total Expense") +
+ #   
+ #   theme(legend.position="none",
+ #   text = element_text(family = "Garamond"),
+ #   plot.title = element_text(face = "bold", size = 12),
+ #   
+ #   axis.title.x = element_text(size = 10, hjust = 1),
+ #   axis.title.y = element_text(size = 10),
+ #   axis.text = element_text(size = 8)) +
+ #   
+ #   scale_fill_viridis(name = "expense", option = "D") +
+ # 
+ #   transition_time("month_year") +
+ #   ease_aes('linear')
 
 ```
 
@@ -641,8 +641,9 @@ ggplot(df_monthly_melt, aes(x = month_year, y = value, fill = variable)) +
   geom_bar(stat = "identity", position = position_dodge(width = 25), alpha = 0.7) +
   scale_fill_manual(name = "Legend", values = c("mean_income" = "blue", "mean_cost_of_living" = "red")) +
   labs(x = "Month", y = "Mean", title = "Monthly Mean Income and Cost of Living") +
-  scale_x_date(date_breaks = "1 month", date_labels = "%m/%Y")  +
-  theme(axis.text.x = element_text(angle = 45, hjust = 0.4, vjust = 0.5, size = 5)) 
+  scale_x_date(guide = guide_axis(angle = 45))
+  theme(axis.text.x = element_text(hjust = 0.4, vjust = 0.5, size = 5)) 
+
 ```
 Looking at the wage vs cost of living, we can see that on average, most citizens can cope with their cost of living as their mean wage (blue bars) is higher than the mean cost of living (red bars). Most citizens should still have savings monthly. 
 
