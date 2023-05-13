@@ -1,5 +1,5 @@
 ---
-title: "In Class Ex 5: Network Data Visualisation and Analysis"
+title: "Hands-on Ex 5: Network Data Visualisation and Analysis"
 author: "Dabbie Neo"
 date: 5/13/2023
 date-modified: "`r Sys.Date()`"
@@ -9,9 +9,9 @@ execute:
   warning: false 
 ---
 
-# 1. Getting Started 
+# 1. Getting Started
 
-## Install and launching R packages 
+## Install and launching R packages
 
 ```{r}
 pacman::p_load(igraph, tidygraph, ggraph,visNetwork, lubridate, clock,
@@ -30,7 +30,8 @@ GAStech_edges <- read_csv("data/GAStech_email_edge-v2.csv")
 ```{r}
 glimpse(GAStech_edges)
 ```
-## Wrangling Time 
+
+## Wrangling Time
 
 ```{r}
 GAStech_edges <- GAStech_edges %>%
@@ -40,9 +41,10 @@ GAStech_edges <- GAStech_edges %>%
                         abbr = FALSE))
 glimpse(GAStech_edges)
 ```
-## Wrangling attributes. 
 
-GAStech_edges data.frame consists of individual email flow records, which is not useful for visualisation. 
+## Wrangling attributes.
+
+GAStech_edges data.frame consists of individual email flow records, which is not useful for visualisation.
 
 Thus, we will aggregate the individual by date,senders, receivers, main subject and day of the week.
 
@@ -68,9 +70,10 @@ GAStech_graph <- tbl_graph(nodes = GAStech_nodes,
                            directed = TRUE)
 GAStech_graph
 ```
+
 # 3. Plotting Static Network Graphs with `ggraph` package
 
-## 3.1 Plotting a basic network graph 
+## 3.1 Plotting a basic network graph
 
 ```{r}
 ggraph(GAStech_graph) +
@@ -87,6 +90,7 @@ g <- ggraph(GAStech_graph) +
 
 g + theme_graph()
 ```
+
 ### 3.1.3 Changing the color of the plot
 
 ```{r}
@@ -97,6 +101,7 @@ g <- ggraph(GAStech_graph) +
 g + theme_graph(background = 'grey10',
                 text_colour = 'white')
 ```
+
 ### 3.1.4 Modifying network nodes
 
 In this section, you will color each node by referring to their respective departments.
@@ -143,11 +148,11 @@ g <- ggraph(GAStech_graph,
 g + facet_edges(~Weekday)
 ```
 
-As shown above, we can see that weekdays there are interactions, but Saturday there are no links, meaning not much interaction with others. 
+As shown above, we can see that weekdays there are interactions, but Saturday there are no links, meaning not much interaction with others.
 
 ## 3.2 Network Metrics Analysis
 
-### 3.2.1 Computing centrality indices 
+### 3.2.1 Computing centrality indices
 
 ```{r}
 g <- GAStech_graph %>%
@@ -160,6 +165,7 @@ g <- GAStech_graph %>%
             size=betweenness_centrality))
 g + theme_graph()
 ```
+
 ### 3.2.2 Visualising Community
 
 ```{r}
@@ -176,7 +182,7 @@ g + theme_graph()
 
 ## 3.3 Building Interactive Network Graph with `visNetwork`
 
-Before we plot the interactive network graph, we need to prepare the data model using the code chunk below. 
+Before we plot the interactive network graph, we need to prepare the data model using the code chunk below.
 
 ```{r}
 GAStech_edges_aggregated <- GAStech_edges %>%
@@ -202,6 +208,7 @@ visNetwork(GAStech_nodes,
 ### 3.3.1 Working with visual attributes - Nodes
 
 Rename Department field to group
+
 ```{r}
 GAStech_nodes <- GAStech_nodes %>%
   rename(group = Department) 
