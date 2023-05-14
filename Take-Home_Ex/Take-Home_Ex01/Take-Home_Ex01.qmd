@@ -66,7 +66,7 @@ The code chunk below uses p_load() of pacman package to check if packages are in
 -   [tidyverse](https://www.tidyverse.org/): A family of modern R packages specially designed to support data science, analysis and communication task including creating static statistical graphs.
 
 ```{r}
-pacman::p_load(plotly, ggstatsplot, knitr, patchwork, ggdist, ggthemes,ggrepel, tidyverse,gt,rstatix,ggpmisc,ggridges,gganimate,viridis,ggiraph,reshape2,scales, performance,ggalt,ggpubr)
+pacman::p_load(plotly, ggstatsplot, knitr, patchwork, ggdist, ggthemes,ggrepel, tidyverse,gt,rstatix,ggpmisc,ggridges,gganimate,viridis,ggiraph,reshape2,scales, performance,ggalt,ggpubr,crosstalk, ungeviz, ggdist, colorspace)
 ```
 
 ## 3.2 Importing the Data
@@ -339,7 +339,7 @@ Similarly, we will use histogram and boxplot to show the age distribution.
 
 The boxplot below shows that the minimum age is 18 and the maximum age is 60, which is most likely the retirement age. The histogram shows that the age is normally distributed,where the mean age equals the median age of 39. Thus, it appears that the city of engagement does not need to worry about aging population, which in turn meant that they do not need to invest in improving birth rate.
 
-However, based on the pie chart, we can see that though the starting age is 18, only 5% of the working population is below the age of 21. This is probably because most are still studying at thar age and are not actively working.
+However, based on the pie chart, we can see that though the starting age is 18, only 5% of the working population is below the age of 21. This is probably because most are still studying at that age and are not actively working.
 
 ```{r}
 #| code-fold: true
@@ -594,9 +594,9 @@ p_fh <- ggplot(data = combined_table, aes(x = month_year, y = Financial_health,
 ggplotly(p_fh, tooltip = c("x", "y", "tooltip"))
 ```
 
-To find out if financial health is affected by wage or cost of living, we `correlogram` to see the correlation between financial health and wage, cost of living and the various expense category. Based on the correlation table and the significant test of correlation, we can see that financial health and wage has a strong positive correlation of 0.98 , while cost of living has low negative correlation of -0.14.
+To find out if financial health is affected by wage or cost of living, we use the `correlogram` to see the correlation between financial health and wage, cost of living and the various expense category. Based on the correlation table and the significant test of correlation, we can see that financial health and wage has a strong positive correlation of 0.98 , while cost of living has low negative correlation of -0.14.
 
-Based on the correlogram below, we can also observe that there Recreation and Shelter has a high correlation with Cost of living.
+Based on the correlogram below, we can also observe that Recreation and Shelter have a high correlation with Cost of living.
 
 ```{r}
 #| code-fold: true
@@ -715,9 +715,9 @@ expenses_wage <- p_expense + p_meanwage + plot_layout(heights = c(80, 50))
 expenses_wage
 ```
 
-Looking at the expenses over time plot above, it showed that education, food and shelter remained stable over time, which meant these costs are most likely fixed despite any wage fluations. Recreation expenses, on the hand, is high in March and decreases significantly from March 2022 to April 2022 and plateaus to a stable rate thereafter.
+Looking at the expenses over time plot above, it showed that education, food and shelter remained stable over time, which meant these costs are most likely fixed despite any wage fluctuations. Recreation expenses, on the hand, is high in March and decreases significantly from March 2022 to April 2022 and plateaus to a stable rate thereafter.
 
-Looking at the wage over time plot, we can see that in March, the mean income is at its peak in March 2022 and dips significantly in April 2022. April 2022 onwards, the income remains relatively stable and starts to increase slightly in August 2022, but in Han 2023 it start to decrease further. The fluctuations in the financial health and income is directly proportionate. And we can also see that, recreation expenses increases when there is an increase in income but remain low when income is low.
+Looking at the wage over time plot, we can see that in March, the mean income is at its peak in March 2022 and dips significantly in April 2022. April 2022 onward, the income remains relatively stable and starts to increase slightly in August 2022, but in Jan 2023 it start to decrease further. The fluctuations in the financial health and income is directly proportionate. And we can also see that, recreation expenses increases when there is an increase in income but remain low when income is low.
 
 Since this is an agricultural city, participants' pay could be likely to be affected by the seasons and harvest.
 
@@ -754,7 +754,7 @@ ggplot(df_monthly_melt, aes(x = month_year, y = value, fill = variable)) +
 
 ```
 
-### 4.1.3 Observation on Education Level
+### 4.1.4 Observation on Education Level
 
 #### Education affects financial health and birth rate
 
@@ -791,7 +791,9 @@ We observe here that education is positively correlated to wage and financial he
 
 To further confirm that wage is affected by education level, we will test the following null hypothesis:
 
-H0: the mean wage across different education levels are the same H1: the mean wage across different education levels are different
+***H0: the mean wage across different education levels are the same***
+
+***H1: the mean wage across different education levels are different***
 
 As based on previous normality assumption test done for wage, we know that wage is not normally distributed. Thus, to test the null hypothesis, we will perform the non-parametric test, `Oneway ANOVA Test`.
 
@@ -849,8 +851,8 @@ However, we also observed that there are poor people who have the highest jovial
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
-#| fig-height: 5
-#| fig-width: 10
+#| fig-height: 7
+#| fig-width: 9
 
 # Create the plot
 p_j <- ggplot(combined_table, aes(x = Financial_health, y = joviality, color = Wage)) +
@@ -953,8 +955,7 @@ ggplot(data_reg, aes(x = value, y = joviality, color = variable)) +
   geom_point(size = 0.25) +
   geom_smooth(method = "lm", formula = y ~ x, se = FALSE, aes(group = variable)) +
   xlab("Expenses_type") +
-  ylab("Joviality")
-
+  ylab("Joviality") 
 ```
 
 ## 4.3 Observation on Interest Groups
@@ -982,7 +983,7 @@ ggplot(data = combined_table_grp, aes(x = interestGroup)) +
 
 Furthermore, we can use the `heatmap` to have overall glimpse of the interest groups by age_bin to see if it affects the type of interest participants are in.
 
-From the heatmap below, we can see that there is a high proportion of age_bin [30,40) that are in Interest Group H.
+From the heatmap below, we can see that there is a high proportion of age_bin \[30,40) that are in Interest Group H.
 
 ```{r}
 #| code-fold: true
@@ -1013,7 +1014,7 @@ ggplot(data = df_heatmap, aes(x = interestGroup, y = age_bin, fill = n)) +
 
 It can be tempting to interpret point estimates like median as the true precise representation of the true data value. However, it should be noted that there are uncertainties surrounding these point estimates. Thus we want to show the target quantile confidence levels (95% or 99%) that the true (unknown) estimate would like within the interval, given evidence provided by observed data.
 
-As can been seen from the age_bin plot below, some age_bin have higher uncertainties such as age_bin [20,30) and [50,60]. This could be due to the presence of large no of outliers, and probably at the stage of the deciding their career path. On the other hand, age_bin such as [18,20) has less uncertainties,which may indicate lower presence of outliers.
+As can been seen from the age_bin plot below, some age_bin have higher uncertainties such as age_bin \[20,30) and \[50,60\]. This could be due to the presence of large no of outliers, and probably at the stage of the deciding their career path. On the other hand, age_bin such as \[18,20) has less uncertainties,which may indicate lower presence of outliers.
 
 Likewise, for the educationLevel plot below, low level education has less uncertainties, while the higher educationLevel, the higher the uncertainties get.
 
@@ -1104,7 +1105,7 @@ ggplot(
 
 ### 4.4.2 Visualizing Uncertainty with Hypothetical Outcome Plots (HOPs)
 
-HPOs can help to illustrate the uncertainty and variability of the data and model predictions, and highlight the potential impact of different variables or factors on the outcomes of interest. 
+HPOs can help to illustrate the uncertainty and variability of the data and model predictions, and highlight the potential impact of different variables or factors on the outcomes of interest.
 
 ::: panel-tabset
 ## Age_bin
@@ -1112,19 +1113,19 @@ HPOs can help to illustrate the uncertainty and variability of the data and mode
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
-#| fig-height: 11
-#| fig-width: 12.5
+#| fig-height: 5
+#| fig-width: 8
 
-# library(ungeviz)
-# 
-# ggplot(data = combined_table,
-#         (aes(x = factor(age_bin), y = Wage))) +
-#    geom_point(position = position_jitter(
-#      width = 0.05, height = 0.3),
-#      size = 0.4, color = "#0072B2", alpha = 1/2) +
-#    geom_hpline(data = sampler(25, group = age_bin), height = 0.6, color = "#D55E00") +
-#    theme_bw() +
-#   transition_states(.draw, 1, 3)
+library(ungeviz)
+
+ggplot(data = combined_table,
+        (aes(x = factor(age_bin), y = Wage))) +
+   geom_point(position = position_jitter(
+     width = 0.05, height = 0.3),
+     size = 0.4, color = "#0072B2", alpha = 1/2) +
+   geom_hpline(data = sampler(25, group = age_bin), height = 0.6, color = "#D55E00") +
+   theme_bw() +
+  transition_states(.draw, 1, 3)
 ```
 
 ## educationLevel
@@ -1132,20 +1133,20 @@ HPOs can help to illustrate the uncertainty and variability of the data and mode
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
-#| fig-height: 11
-#| fig-width: 12.5
+#| fig-height: 5
+#| fig-width: 8
 
-# ggplot(data = combined_table,
-#         aes(x = factor(educationLevel), y = Wage)) +
-#    geom_point(position = position_jitter(
-#      width = 0.05, height = 0.3),
-#      size = 0.4, color = "#0072B2", alpha = 1/2) +
-#    geom_hpline(data = sampler(25, group = educationLevel), height = 0.6, color = "#D55E00") +
-#    theme_bw() +
-#    transition_states(.draw, 1, 3) 
+ggplot(data = combined_table,
+        aes(x = factor(educationLevel), y = Wage)) +
+   geom_point(position = position_jitter(
+     width = 0.05, height = 0.3),
+     size = 0.4, color = "#0072B2", alpha = 1/2) +
+   geom_hpline(data = sampler(25, group = educationLevel), height = 0.6, color = "#D55E00") +
+   theme_bw() +
+   transition_states(.draw, 1, 3)
 ```
 :::
 
-# 5.0 References 
+# 5. References
 
-Seniors past works
+Seniors' past works
