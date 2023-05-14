@@ -66,7 +66,7 @@ The code chunk below uses p_load() of pacman package to check if packages are in
 -   [tidyverse](https://www.tidyverse.org/): A family of modern R packages specially designed to support data science, analysis and communication task including creating static statistical graphs.
 
 ```{r}
-pacman::p_load(plotly, ggstatsplot, knitr, patchwork, ggdist, ggthemes,ggrepel, tidyverse,gt,rstatix,ggpmisc,ggridges,gganimate,viridis,ggiraph,reshape2,scales, performance,ggalt,ggplot2)
+pacman::p_load(plotly, ggstatsplot, knitr, patchwork, ggdist, ggthemes,ggrepel, tidyverse,gt,rstatix,ggpmisc,ggridges,gganimate,viridis,ggiraph,reshape2,scales, performance,ggalt,ggpubr)
 ```
 
 ## 3.2 Importing the Data
@@ -91,7 +91,7 @@ colSums(is.na(financial))
 
 ### 3.3.2 Data Issues
 
-Looking at the data tables below, we notice a few data issues.
+Using `glimpse()`, we can look at the data types of the datasets.
 
 ```{r}
 glimpse(participants)
@@ -844,7 +844,7 @@ ggstatsplot::ggcorrmat(
 
 Even though correlation between joviality is weak (-0.35), we can observe the smooth red curve is relatively different across different income levels. It appears joviality has a strong correlation for lower income levels as compaeed to the rich. when broken down in health levels, it appears that joviality has the lowest correlation for middle income, the R2= 0.006.
 
-However, we also observed that there are poor people who have the highest joviality of 0.99 whereas for the top 5% citizens (in blue), all of them have a joviality score below 0.64. Thus, we can conclude that being rich does not necessarily make citizens happy.
+However, we also observed that there are poor people who have the highest joviality of 0.90 whereas for the income earners (in red), all of them have a joviality score below 0.64. Thus, we can conclude that being rich does not necessarily make citizens happy.
 
 ```{r}
 #| code-fold: true
@@ -853,11 +853,13 @@ However, we also observed that there are poor people who have the highest jovial
 #| fig-width: 10
 
 # Create the plot
-ggplot(combined_table, aes(x = Financial_health, y = joviality)) +
+p_j <- ggplot(combined_table, aes(x = Financial_health, y = joviality, color = Wage)) +
   geom_point() + # Scatter plot
   geom_smooth(method = "loess", se = FALSE, colour = "red") + # Add smoother
-  scale_y_continuous(limits = c(0, 1)) # Set Y-axis limits to 0-1
+  scale_y_continuous(limits = c(0, 1)) + # Set Y-axis limits to 0-1
+  scale_color_gradient(low = "blue", high = "red") # Set color scale from blue to red
 
+ggplotly(p_j)
 ```
 
 ```{r}
@@ -912,7 +914,7 @@ ggscatterstats(
 
 #### Joviality vs expense_category
 
-We can see that food expenses has the highest correlation at 0.49. Thus, the city planners and managers can consider allocating a portion of the grant to food expenses
+We can see that food expenses has the highest correlation at 0.49. Thus, the city planners and managers can consider allocating a portion of the grant to food expenses.
 
 ```{r}
 #| code-fold: true
@@ -933,17 +935,26 @@ ggstatsplot::ggcorrmat(
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
-#| fig-height: 11
-#| fig-width: 12.5
+#| fig-height: 5
+#| fig-width: 8
 
-# combined_table %>% 
-#   select(joviality, Education, Food, Shelter, Recreation) %>% 
-#   ggscatterstats(
-#     formula = joviality ~ Education + Food + Shelter + Recreation, 
-#     marginal = "density",
-#     method.args = list(color = "variable"), 
-#     group = "variable"
-#   )
+# Select only the columns of interest from combined_table
+data_reg <- select(combined_table, Shelter, Food, Education, Recreation, joviality)
+
+data_reg <- data_reg %>%
+  mutate_at(vars(Shelter, Food, Education, Recreation), abs)
+
+# Melt data into long format
+data_reg <- reshape2::melt(data_reg, id.vars = "joviality")
+
+#Create plot with multiple regression lines
+
+ggplot(data_reg, aes(x = value, y = joviality, color = variable)) +
+  geom_point(size = 0.25) +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE, aes(group = variable)) +
+  xlab("Expenses_type") +
+  ylab("Joviality")
+
 ```
 
 ## 4.3 Observation on Interest Groups
@@ -1107,13 +1118,12 @@ HPOs can help to illustrate the uncertainty and variability of the data and mode
 # library(ungeviz)
 # 
 # ggplot(data = combined_table,
-#        (aes(x = factor(age_bin), y = Wage))) +
-#   geom_point(position = position_jitter(
-#     width = 0.05, height = 0.3),
-#     size = 0.4, color = "#0072B2", alpha = 1/2) +
-#   geom_hpline(data = sampler(25, group = age_bin), height = 0.6, color = "#D55E00") +
-#   theme_bw() +
-#   # `.draw` is a generated column indicating the sample draw
+#         (aes(x = factor(age_bin), y = Wage))) +
+#    geom_point(position = position_jitter(
+#      width = 0.05, height = 0.3),
+#      size = 0.4, color = "#0072B2", alpha = 1/2) +
+#    geom_hpline(data = sampler(25, group = age_bin), height = 0.6, color = "#D55E00") +
+#    theme_bw() +
 #   transition_states(.draw, 1, 3)
 ```
 
@@ -1125,16 +1135,14 @@ HPOs can help to illustrate the uncertainty and variability of the data and mode
 #| fig-height: 11
 #| fig-width: 12.5
 
-# library(ungeviz)
-# 
 # ggplot(data = combined_table,
-#        aes(x = factor(educationLevel), y = Wage)) +
-#   geom_point(position = position_jitter(
-#     width = 0.05, height = 0.3),
-#     size = 0.4, color = "#0072B2", alpha = 1/2) +
-#   geom_hpline(data = sampler(25, group = educationLevel), height = 0.6, color = "#D55E00") +
-#   theme_bw() +
-#   transition_states(.draw, 1, 3) 
+#         aes(x = factor(educationLevel), y = Wage)) +
+#    geom_point(position = position_jitter(
+#      width = 0.05, height = 0.3),
+#      size = 0.4, color = "#0072B2", alpha = 1/2) +
+#    geom_hpline(data = sampler(25, group = educationLevel), height = 0.6, color = "#D55E00") +
+#    theme_bw() +
+#    transition_states(.draw, 1, 3) 
 ```
 :::
 
