@@ -1,0 +1,77 @@
+---
+title: "Take Home_Ex03"
+author: "Dabbie Neo"
+date: 6/3/2023
+date-modified: "`r Sys.Date()`"
+execute: 
+  echo: true
+  eval: true
+  warning: false
+---
+
+# 1. Background
+
+The country of Oceanus has sought FishEye International's help in identifying companies possibly engaged in illegal, unreported, and unregulated (IUU) fishing. As part of the collaboration, FishEye's analysts received import/export data for Oceanus' marine and fishing industries.
+
+With reference to [Mini-Challenge 3](https://vast-challenge.github.io/2023/MC3.html) of [VAST Challenge 2023](https://vast-challenge.github.io/2023/) and by using appropriate static and interactive statistical graphics methods, we will be helping FishEye to identify companies that may be engaged in illegal fishing.
+
+# 2. Data Source
+
+The data is taken from the [Mini-Challenge 3](https://vast-challenge.github.io/2023/MC3.html) of [VAST Challenge 2023](https://vast-challenge.github.io/2023/). 
+
+# 3. Data Preparation
+
+## 3.1 Install and launching R packages
+
+The code chunk below uses p_load() of pacman package to check if packages are installed in the computer. If they are, then they will be launched into R. The R packages installed are:
+
+```{r}
+pacman::p_load(jsonlite,tidygraph,ggraph,visNetwork,tidyverse,graphlayouts, ggforce, tidytext)
+```
+
+## 3.2 Loading the Data
+
+`fromJSON()` of jsonlite package is used to import MC3.json into R environment.
+
+```{r}
+Mc3_data <- fromJSON("data/MC3.json")
+```
+
+```{r}
+mc3_edges <- as_tibble(Mc3_data$links)
+
+```
+
+```{r}
+mc3_edges <- as_tibble(Mc3_data$links) %>%
+  distinct() %>%
+  mutate(source = as.character(source),
+         target = as.character(target),
+         type = as.character(type)) %>%
+  group_by(source, target, type) %>%
+  summarise(weights = n()) %>%
+  filter(source != target) %>%
+  ungroup()
+
+```
+```{r}
+mc3_nodes <- as_tibble(Mc3_data$nodes) %>%
+  mutate(country = as.character(country),
+         id = as.character(id),
+         product_services = as.character(product_services),
+         revenue_omu = as.numeric(as.character(revenue_omu)),
+         type = as.character(type)) %>%
+  select(id, country, type, revenue_omu, product_services) #select() used to organise the sequence of col 
+
+```
+
+
+## 3.3 Data Wrangling
+
+```{r}
+
+
+```
+
+
+

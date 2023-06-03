@@ -1,0 +1,721 @@
+---
+title: "Take Home_Ex02"
+author: "Dabbie Neo"
+date: 6/4/2023
+date-modified: "`r Sys.Date()`"
+execute: 
+  echo: true
+  eval: true
+  warning: false
+---
+
+# 1. Background
+
+The country of Oceanus has sought FishEye International's help in identifying companies possibly engaged in illegal, unreported, and unregulated (IUU) fishing. As part of the collaboration, FishEye's analysts received import/export data for Oceanus' marine and fishing industries.
+
+With reference to [Mini-Challenge 2](https://vast-challenge.github.io/2023/MC2.html) of [VAST Challenge 2023](https://vast-challenge.github.io/2023/) and by using appropriate static and interactive statistical graphics methods, we will be helping FishEye to identify companies that may be engaged in illegal fishing.
+
+# 2. Data Source
+
+The data is taken from the [Mini-Challenge 2](https://vast-challenge.github.io/2023/MC2.html) of [VAST Challenge 2023](https://vast-challenge.github.io/2023/). mc2_challenge_graph.json file will be used for the purpose of this exercise.
+
+# 3. Data Preparation
+
+## 3.1 Install and launching R packages
+
+The code chunk below uses p_load() of pacman package to check if packages are installed in the computer. If they are, then they will be launched into R. The R packages installed are:
+
+```{r}
+pacman::p_load(jsonlite,tidygraph,ggraph,visNetwork,tidyverse,lubridate,igraph,plotly,treemap)
+```
+
+## 3.2 Loading the Data
+
+`fromJSON()` of jsonlite package is used to import mc2_challenge_graph.json into R environment.
+
+```{r}
+MC2 <- fromJSON("data/mc2_challenge_graph.json")
+```
+
+## 3.3 Data Wrangling
+
+### 3.3.1 Extracting the nodes
+
+The code chunk is used to extract nodes data table from mc2_data list object and save the output in a tibble data frame object called mc2_nodes.
+
+```{r}
+#Extract id, shpcountry and rcvcountry and make it as a tibble database. use select to choose the fields you want and reorganise the fields as you want
+MC2_nodes <- as_tibble(MC2$nodes) %>%
+  select(id, shpcountry, rcvcountry)
+head(MC2_nodes)
+```
+
+::: callout-note
+## Things to learn
+
+`select()` is used not only to select the field needed but also to re-organise the sequence of the fields.
+:::
+
+### 3.3.2 Extracting the edges
+
+The code chunk is used to extract edges data table from mc2_data list object and save the output in a tibble data frame object called mc2_edges.
+
+```{r}
+MC2_edges <- as_tibble(MC2$links) %>%
+  select(source, target, arrivaldate, hscode, valueofgoods_omu, valueofgoodsusd, volumeteu, weightkg)
+
+```
+
+### 3.3.3 Reviewing the imported data
+
+Next, we will examine the structure of the data frame using `glimpse()` of dplyr.
+
+```{r}
+glimpse(MC2_nodes)
+glimpse(MC2_edges)
+```
+
+::: callout-note
+## Warning
+
+The output report of MC2_edges above reveals that the arrivaldate is treated as <chr> data type instead of date data type. This is an error! Before we continue, it is important for us to change the data type of arrivaldate field to "Date"" data type.
+:::
+
+### 3.3.4 Wrangling Time
+
+```{r}
+MC2_edges <- MC2_edges %>%
+  mutate(ArrivalDate = ymd(arrivaldate)) %>%
+  mutate(Year = year(ArrivalDate)) %>%
+  mutate(Month = month(ArrivalDate)) %>%
+  mutate(Monthyear = paste(Year, Month, sep = "-")) %>%
+  select(source, target, ArrivalDate, Month, Year, hscode, valueofgoods_omu, volumeteu, weightkg, valueofgoodsusd) %>%
+  distinct()
+head(MC2_edges)
+```
+
+::: callout-note
+## Things to learn
+
+-   `mutate()` is used 4 times to create 4 derive fields.
+
+    -   `ymd()` of **lubridate** package is used to covert *arrivaldate* field from character data type into date data type.
+
+    -   `year()` of **lubridate** package is used to convert the values in ArrivalDate field into year values.
+
+    -   month() of l**ubridate** package is used to convert the values in ArrivalDate field into month values.
+
+-   `select()` is used not only to select the field needed but also to re-organise the sequent of the fields.
+:::
+
+### 3.3.5 Checking if there is any missing values in the edge data table
+
+The below chunck is used to calculate the percentage of NAs and 0s in the each column in the edge data table to see if we should use it for our analysis.
+
+```{r}
+# Select specific columns in your dataset
+selected_columns <- c("valueofgoods_omu", "volumeteu", "weightkg", "valueofgoodsusd")
+
+## Calculate the percentage of NA values and zeros for the selected columns
+total_rows <- nrow(MC2_edges)
+na_percentage <- colSums(is.na(MC2_edges[, selected_columns])) / total_rows * 100
+zero_percentage <- colSums(MC2_edges[, selected_columns] == 0, na.rm = TRUE) / total_rows * 100
+
+# Combine the results into a data frame
+result <- data.frame(NA_Percentage = na_percentage, Zero_Percentage = zero_percentage)
+
+# Display the result
+result
+```
+
+::: callout-note
+## Warning
+
+There is a high percentage of NA value in valueofgoods_omu and valueofgoodusd and a high percentage of zero in volumeteu, thus we will leave them out in our analysis, since we are unable to derive any useful insights.
+:::
+
+### 3.3.6 Preparing the edges data table
+
+Harmonized System (HS) codes are the identification codes given to goods for use in international trade. The HS codes are administered by the World Customs Organization (WCO) and are internationally accepted for use by customs authorities and companies to identify goods.
+
+Since we are doing an analysis on the fishing industry, we have to first filter those hscodes that are fishing industry related products.
+
+```{r}
+mc2_edges_aggregated <- MC2_edges %>%
+  filter(grepl("^30[1-8]|^2301|^160[4-5]|^1212|^1302|^1504|^151610|^151790", hscode)) %>% # filter out only those hscode that are fishing industry related products 
+  group_by(source, target, hscode, Year) %>%
+    summarise(weights = n(), median_weight = median(weightkg)) %>%
+  filter(source!=target) %>%
+  filter(weights>10) %>%
+  ungroup()
+mc2_edges_aggregated
+```
+
+Next, we take a look at what are the top fishing related products that has most transactions.
+
+```{r}
+top_3_hscode <- mc2_edges_aggregated %>%
+  group_by(hscode) %>%
+  summarise(total_weights = sum(weights)) %>%
+  arrange(desc(total_weights)) %>%
+  slice_head(n = 3)
+
+top_3_hscode
+
+```
+
+The top 3 hscodes that has most number of transactions are '306170','304620' and '160414'. Thus, we will focus our analysis based on these 3 hscodes.
+
+```{r}
+#Filter the mc2_edges_aggregated based on the top 3 hscode
+mc2_edges_aggregated_top <- mc2_edges_aggregated %>%
+  filter(hscode == "306170"| hscode == "304620"| hscode == "160414")
+
+#mc2_edges_aggregated_top
+```
+
+::: callout-note
+## Things to learn
+
+-   `filter()` is used to select records whereby hscode that fishing industry related products. The selection of hscode is referenced from the link [here](https://www.cybex.in/hs-codes/fish-crustaceans-molluscs-aquatic-invertebrates-chapter-03.aspx)
+
+-   `group_by()` is used to aggregate values by source, target, hscode, Year.
+
+-   `summarise()` and `n()` are used to count the aggregated records.
+
+-   filter() is then used to perform the below selection,
+
+    -   to select all records whereby source are not equal to target
+:::
+
+### 3.3.7 Preparing the nodes data table
+
+Instead of using the nodes data table extracted from mc2_data, we will prepare a new nodes data table by using the source and target fields of mc2_edges_aggregated data table. This is necessary to ensure that the nodes in nodes data tables include all the source and target values. Then we will reference to the MC2_nodes table to get the corresponding shpcountry and rcvcountry values.
+
+```{r}
+id1_aggregated <- mc2_edges_aggregated_top %>%
+  select(source) %>%
+  rename(id = source)
+id2_aggregated <- mc2_edges_aggregated_top %>%
+  select(target) %>%
+  rename(id = target)
+mc2_nodes_extracted_aggregated <- rbind(id1_aggregated, id2_aggregated) %>%
+  distinct()
+
+# Join with MC2_nodes by 'id to get the 'shpcountry', and 'rcvcountry'
+mc2_nodes_extracted_aggregated <- mc2_nodes_extracted_aggregated %>%
+  left_join(MC2_nodes, by = "id")
+head(mc2_nodes_extracted_aggregated)
+```
+
+### 3.3.8 Building the tidygraph model
+
+The code chunk below is then used to build the tidy graph data model.
+
+```{r}
+mc2_graph <- tbl_graph(nodes = mc2_nodes_extracted_aggregated,
+                       edges = mc2_edges_aggregated_top,
+                       directed = TRUE)
+mc2_graph
+```
+
+# 4. Network Metrics Analysis
+
+## 4.1 Calulating the in, out and total degree centrality of the nodes
+
+Degree centrality is a measure of immediate connection in a network. It could be interpreted as immediate reach in a social network.
+
+We will calculate the in and out degree centrality of the nodes, and create 2 new columns to store these scores.
+
+```{r}
+#| echo: false
+#| fig-width: 4
+#| fig-height: 4
+
+# Calulate the in, out and total degree centrality and add 3 new columns via mutate() to store the values 
+mc2_graph <- mc2_graph %>%
+  activate(nodes) %>%
+  mutate(
+    in_degree_centrality = centrality_degree(mode = "in"),
+    out_degree_centrality = centrality_degree(mode = "out"),
+    degree_centrality = centrality_degree(mode = "ALL")) %>%
+  arrange(desc(in_degree_centrality)) #%>%
+ # top_n(50) #Consider only the top 50 in_degree_centrality values 
+  
+mc2_graph
+
+```
+
+::: callout-note
+## Things to learn
+
+`activate()` is used to make the nodes of mc2_graph active to calculate the degree centrality.
+
+`mutate()` function from the dplyr package is used to add two new columns, in_degree_centrality and out_degree_centrality, to the nodes of the mc2_graph object
+:::
+
+## 4.2 Determining the type of entity the id belongs to
+
+```{r}
+#| echo: false
+#| fig-width: 4
+#| fig-height: 4
+
+#Specify what entity the id could be 
+mc2_graph <- mc2_graph %>%
+  mutate(
+    node_type = case_when(
+      in_degree_centrality == 0 & out_degree_centrality > 0 ~ "vessels",
+      in_degree_centrality > 0 & out_degree_centrality == 0 ~ "transshipment",
+      in_degree_centrality > 0 & out_degree_centrality > 0 ~ "vessels/transshipment"
+    )
+  )
+
+```
+
+```{r}
+#| echo: false
+#| fig-width: 4
+#| fig-height: 4
+
+#Count the how many id belong to each entity
+vessels_count <- mc2_graph %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  filter(node_type == "vessels") %>%
+  nrow()
+
+transhipment_count <- mc2_graph %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  filter(node_type == "transshipment") %>%
+  nrow()
+
+both_count <- mc2_graph %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  filter(node_type == "vessels/transshipment") %>%
+  nrow()
+
+cat("Number of vessels:", vessels_count, "\n")
+cat("Number of transshipment:", transhipment_count, "\n")
+cat("Number of vessels/transshipment:", both_count, "\n")
+
+```
+
+After cleaning up the data, we have a total of 29 vessels, 21 transshipment and 74 companies that may be either a vessel or transshipment to work with for our analysis.
+
+::: callout-note
+## Note
+
+-   If in_degree_centrality == 0, it means that the company is most likely a pure exporter and highly likely a carrier or vessel.
+
+-   If out_degree_centrality == 0, it means that the company is most likely a pure importer and highly likely involved in transhipment.
+
+-   If in_degree_centrality \> 0 & out_degree_centrality \> 0, the company is most likely both a vessel or transhipment.
+:::
+
+## 4.3 Community Detection Analysis
+
+Next, we will use the `group_edge_betweenness` function. It works by iteratively removing the edges with the highest betweenness centrality, which is a measure of the number of shortest paths that pass through an edge. By removing these edges, the graph is divided into clusters or communities.
+
+```{r}
+#| echo: false
+#| fig-width: 5
+#| fig-height: 5
+
+set.seed(123)
+mc2_graph <- mc2_graph %>%
+   mutate(community = as.factor(group_edge_betweenness(weights = weights, directed = TRUE)))
+
+g_mcgraph <- mc2_graph %>%
+  activate(nodes) %>%
+  group_by(community) %>%
+  filter(n() > 2) %>%    #filter the community size > 2
+  ungroup() %>%
+  ggraph(layout = "fr") + 
+  geom_edge_link(aes(width = weights), 
+                 alpha = 0.2,
+                 arrows = "to") +
+  scale_edge_width(range = c(0.1, 5)) +
+  geom_node_point(aes(colour = community)) +
+  theme_graph()
+
+g_mcgraph
+```
+
+As seen from the community detection graph above, there is only 1 community, community 1, that meet the criteria of community size \>2. The node who has the highest in-degree centrality value is Mar del Este CJSC. Below is the code chunck use to find out the who is the transshipment leader for each community.
+
+```{r}
+#| echo: false
+#| fig-width: 5
+#| fig-height: 5
+
+# Find the leader for each community based on in_degree centrality
+Transhipment_leader <- mc2_graph %>%
+  activate(nodes) %>%
+  group_by(community) %>%
+  filter(in_degree_centrality == max(in_degree_centrality)) %>%
+  ungroup()
+
+# Print the ID and community of the leaders
+print(select(Transhipment_leader, id, community))
+```
+
+Next, we will further investigate community 1 by plotting its network graph over the years from 2028-2034 to see if we can find any insights.
+
+```{r}
+#| echo: false
+#| fig-width: 5
+#| fig-height: 5
+
+# Filter the year and id in edges and the corresponding id
+filtered_graph_2028 <- mc2_graph %>%
+  activate(edges) %>%
+  filter(Year == 2028, to == 1)
+
+unique_ids_2028 <- unique(c(filtered_graph_2028 %>%
+                         activate(edges) %>%
+                         pull(from),
+                       filtered_graph_2028 %>%
+                         activate(edges) %>%
+                         pull(to)))
+
+filtered_graph_2028 <- filtered_graph_2028 %>%
+  activate(nodes) %>%
+  filter(row_number() %in% unique_ids_2028) %>%
+  as_tbl_graph()
+
+edges_df_2028 <- filtered_graph_2028 %>%
+  activate(edges) %>%
+  as_tibble()
+
+nodes_df_2028 <- filtered_graph_2028 %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  rename(label = id) %>%
+  mutate(id=row_number()) %>%
+  select(everything()) %>%
+  relocate(id, .before = label)
+
+nodes_df_2028<- nodes_df_2028 %>%
+  rename(group = node_type) 
+
+# Plot the network graph with labeled nodes using visNetwork
+visNetwork(nodes_df_2028, edges_df_2028, submain = list(text = "Network Graph ofMar del Este CJSC in 2028 ",
+                          style = "font-family:Comic Sans MS;color:#000000;font-size:15px;text-align:center;")) %>%
+  visIgraphLayout(layout = "layout_with_fr") %>%
+  visEdges(arrows = "to") %>%
+  visOptions(
+    highlightNearest = TRUE,
+    nodesIdSelection = TRUE,
+  ) %>%
+  visLegend() %>%
+  visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE) 
+
+```
+
+```{r}
+#| echo: false
+#| fig-width: 5
+#| fig-height: 5
+
+filtered_graph_2029 <- mc2_graph %>%
+  activate(edges) %>%
+  filter(Year == 2029, to == 1)
+
+unique_ids_2029 <- unique(c(filtered_graph_2029 %>%
+                         activate(edges) %>%
+                         pull(from),
+                       filtered_graph_2029 %>%
+                         activate(edges) %>%
+                         pull(to)))
+
+filtered_graph_2029 <- filtered_graph_2029 %>%
+  activate(nodes) %>%
+  filter(row_number() %in% unique_ids_2029) %>%
+  as_tbl_graph()
+
+edges_df_2029 <- filtered_graph_2029 %>%
+  activate(edges) %>%
+  as_tibble()
+
+nodes_df_2029 <- filtered_graph_2029 %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  rename(label = id) %>%
+  mutate(id=row_number()) %>%
+  select(everything()) %>%
+  relocate(id, .before = label)
+
+filtered_graph_2029<- filtered_graph_2029 %>%
+  rename(group = node_type) 
+
+# Plot the network graph with labeled nodes using visNetwork
+visNetwork(nodes_df_2029, edges_df_2029, submain = list(text = "Network Graph ofMar del Este CJSC in 2029 ",
+                          style = "font-family:Comic Sans MS;color:#000000;font-size:15px;text-align:center;")) %>%
+  visIgraphLayout(layout = "layout_with_fr") %>%
+  visEdges(arrows = "to") %>%
+  visOptions(
+    highlightNearest = TRUE,
+    nodesIdSelection = TRUE,
+  ) %>%
+  visLegend() %>%
+  visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE) 
+
+```
+
+```{r}
+#| echo: false
+#| fig-width: 5
+#| fig-height: 5
+
+filtered_graph_2030 <- mc2_graph %>%
+  activate(edges) %>%
+  filter(Year == 2030, to == 1)
+
+unique_ids_2030 <- unique(c(filtered_graph_2030 %>%
+                         activate(edges) %>%
+                         pull(from),
+                       filtered_graph_2030 %>%
+                         activate(edges) %>%
+                         pull(to)))
+
+filtered_graph_2030 <- filtered_graph_2030 %>%
+  activate(nodes) %>%
+  filter(row_number() %in% unique_ids_2030) %>%
+  as_tbl_graph()
+
+edges_df_2030 <- filtered_graph_2030 %>%
+  activate(edges) %>%
+  as_tibble()
+
+nodes_df_2030 <- filtered_graph_2030 %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  rename(label = id) %>%
+  mutate(id=row_number()) %>%
+  select(everything()) %>%
+  relocate(id, .before = label)
+
+nodes_df_2030<- nodes_df_2030 %>%
+  rename(group = node_type) 
+
+# Plot the network graph with labeled nodes using visNetwork
+visNetwork(nodes_df_2030, edges_df_2030, submain = list(text = "Network Graph ofMar del Este CJSC in 2030 ",
+                          style = "font-family:Comic Sans MS;color:#000000;font-size:15px;text-align:center;")) %>%
+  visIgraphLayout(layout = "layout_with_fr") %>%
+  visEdges(arrows = "to") %>%
+  visOptions(
+    highlightNearest = TRUE,
+    nodesIdSelection = TRUE,
+  ) %>%
+  visLegend() %>%
+  visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE) 
+
+
+```
+
+```{r}
+#| echo: false
+#| fig-width: 5
+#| fig-height: 5
+
+filtered_graph_2031 <- mc2_graph %>%
+  activate(edges) %>%
+  filter(Year == 2031, to == 1)
+
+unique_ids_2031 <- unique(c(filtered_graph_2031 %>%
+                         activate(edges) %>%
+                         pull(from),
+                       filtered_graph_2031 %>%
+                         activate(edges) %>%
+                         pull(to)))
+
+filtered_graph_2031 <- filtered_graph_2031 %>%
+  activate(nodes) %>%
+  filter(row_number() %in% unique_ids_2031) %>%
+  as_tbl_graph()
+
+edges_df_2031 <- filtered_graph_2031 %>%
+  activate(edges) %>%
+  as_tibble()
+
+nodes_df_2031 <- filtered_graph_2031 %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  rename(label = id) %>%
+  mutate(id=row_number()) %>%
+  select(everything()) %>%
+  relocate(id, .before = label)
+
+nodes_df_2031<- nodes_df_2031 %>%
+  rename(group = node_type) 
+
+# Plot the network graph with labeled nodes using visNetwork
+visNetwork(nodes_df_2031, edges_df_2031, submain = list(text = "Network Graph ofMar del Este CJSC in 2031 ",
+                          style = "font-family:Comic Sans MS;color:#000000;font-size:15px;text-align:center;")) %>%
+  visIgraphLayout(layout = "layout_with_fr") %>%
+  visEdges(arrows = "to") %>%
+  visOptions(
+    highlightNearest = TRUE,
+    nodesIdSelection = TRUE,
+  ) %>%
+  visLegend() %>%
+  visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE) 
+
+```
+
+```{r}
+#| echo: false
+#| fig-width: 5
+#| fig-height: 5
+
+filtered_graph_2032 <- mc2_graph %>%
+  activate(edges) %>%
+  filter(Year == 2032, to == 1)
+
+unique_ids_2032 <- unique(c(filtered_graph_2032 %>%
+                         activate(edges) %>%
+                         pull(from),
+                       filtered_graph_2032 %>%
+                         activate(edges) %>%
+                         pull(to)))
+
+filtered_graph_2032 <- filtered_graph_2032 %>%
+  activate(nodes) %>%
+  filter(row_number() %in% unique_ids_2032) %>%
+  as_tbl_graph()
+
+edges_df_2032 <- filtered_graph_2032 %>%
+  activate(edges) %>%
+  as_tibble()
+
+nodes_df_2032 <- filtered_graph_2032 %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  rename(label = id) %>%
+  mutate(id=row_number()) %>%
+  select(everything()) %>%
+  relocate(id, .before = label)
+
+nodes_df_2032<- nodes_df_2032 %>%
+  rename(group = node_type) 
+
+# Plot the network graph with labeled nodes using visNetwork
+visNetwork(nodes_df_2032, edges_df_2032, submain = list(text = "Network Graph ofMar del Este CJSC in 2032 ",
+                          style = "font-family:Comic Sans MS;color:#000000;font-size:15px;text-align:center;")) %>%
+  visIgraphLayout(layout = "layout_with_fr") %>%
+  visEdges(arrows = "to") %>%
+  visOptions(
+    highlightNearest = TRUE,
+    nodesIdSelection = TRUE,
+  ) %>%
+  visLegend() %>%
+  visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE) 
+
+```
+
+```{r}
+#| echo: false
+#| fig-width: 5
+#| fig-height: 5
+
+filtered_graph_2033 <- mc2_graph %>%
+  activate(edges) %>%
+  filter(Year == 2033, to == 1)
+
+unique_ids_2033 <- unique(c(filtered_graph_2033 %>%
+                         activate(edges) %>%
+                         pull(from),
+                       filtered_graph_2033 %>%
+                         activate(edges) %>%
+                         pull(to)))
+
+filtered_graph_2033 <- filtered_graph_2033 %>%
+  activate(nodes) %>%
+  filter(row_number() %in% unique_ids_2033) %>%
+  as_tbl_graph()
+
+edges_df_2033 <- filtered_graph_2033 %>%
+  activate(edges) %>%
+  as_tibble()
+
+nodes_df_2033 <- filtered_graph_2033 %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  rename(label = id) %>%
+  mutate(id=row_number()) %>%
+  select(everything()) %>%
+  relocate(id, .before = label)
+
+nodes_df_2033<- nodes_df_2033 %>%
+  rename(group = node_type) 
+
+# Plot the network graph with labeled nodes using visNetwork
+visNetwork(nodes_df_2033, edges_df_2033, submain = list(text = "Network Graph ofMar del Este CJSC in 2033 ",
+                          style = "font-family:Comic Sans MS;color:#000000;font-size:15px;text-align:center;")) %>%
+  visIgraphLayout(layout = "layout_with_fr") %>%
+  visEdges(arrows = "to") %>%
+  visOptions(
+    highlightNearest = TRUE,
+    nodesIdSelection = TRUE,
+  ) %>%
+  visLegend() %>%
+  visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE) 
+
+```
+
+```{r}
+#| echo: false
+#| fig-width: 5
+#| fig-height: 5
+
+filtered_graph_2034 <- mc2_graph %>%
+  activate(edges) %>%
+  filter(Year == 2034, to == 1)
+
+unique_ids_2034 <- unique(c(filtered_graph_2034 %>%
+                         activate(edges) %>%
+                         pull(from),
+                       filtered_graph_2034 %>%
+                         activate(edges) %>%
+                         pull(to)))
+
+filtered_graph_2034 <- filtered_graph_2034 %>%
+  activate(nodes) %>%
+  filter(row_number() %in% unique_ids_2034) %>%
+  as_tbl_graph()
+
+edges_df_2034 <- filtered_graph_2034 %>%
+  activate(edges) %>%
+  as_tibble()
+
+nodes_df_2034 <- filtered_graph_2034 %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  rename(label = id) %>%
+  mutate(id=row_number()) %>%
+  select(everything()) %>%
+  relocate(id, .before = label)
+
+nodes_df_2034<- nodes_df_2034 %>%
+  rename(group = node_type) 
+
+# Plot the network graph with labeled nodes using visNetwork
+visNetwork(nodes_df_2034, edges_df_2034, submain = list(text = "Network Graph ofMar del Este CJSC in 2034 ",
+                          style = "font-family:Comic Sans MS;color:#000000;font-size:15px;text-align:center;")) %>%
+  visIgraphLayout(layout = "layout_with_fr") %>%
+  visEdges(arrows = "to") %>%
+  visOptions(
+    highlightNearest = TRUE,
+    nodesIdSelection = TRUE,
+  ) %>%
+  visLegend() %>%
+  visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE) 
+
+```
+
+# 5. References
+
+https://ona-book.org/vertex-importance.html https://smu-my.sharepoint.com/personal/tskam_smu_edu_sg/Documents/VAST%20Challenge%202023/References/Network%20Analysis%20and%20Visualisation/Identifying%20Central%20Carriers%20and%20Detecting%20Key%20Communities%20Within%20the%20Global%20Fish%20Transshipment%20Networks.pdf https://datastorm-open.github.io/visNetwork/edges.html
