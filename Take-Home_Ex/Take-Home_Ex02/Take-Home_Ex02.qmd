@@ -221,16 +221,21 @@ mc2_graph
 
 # 4. Network Metrics Analysis
 
-## 4.1 Calulating the in, out and total degree centrality of the nodes
+## 4.1 Calculating the in, out and total degree centrality of the nodes
 
-Degree centrality is a measure of immediate connection in a network. It could be interpreted as immediate reach in a social network.
+`Degree centrality` is a measure of immediate connection in a network. It could be interpreted as immediate reach in a social network.`Eigenvector centrality` is a measure that takes into account both the number of connections that a node or an actor has, and the degree of influence that the node's immediate connections have in the entire network.
 
-We will calculate the in and out degree centrality of the nodes, and create 2 new columns to store these scores.
+We will calculate the in, out and total degree centrality of the nodes, and use `mutate()` to create new columns to store these values.
 
 ```{r}
-#| echo: false
-#| fig-width: 4
+#| code-fold: true
+#| code-summary: "Show the code"
 #| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
 
 # Calulate the in, out and total degree centrality and add 3 new columns via mutate() to store the values 
 mc2_graph <- mc2_graph %>%
@@ -238,13 +243,38 @@ mc2_graph <- mc2_graph %>%
   mutate(
     in_degree_centrality = centrality_degree(mode = "in"),
     out_degree_centrality = centrality_degree(mode = "out"),
-    degree_centrality = centrality_degree(mode = "ALL")) %>%
-  arrange(desc(in_degree_centrality)) #%>%
- # top_n(50) #Consider only the top 50 in_degree_centrality values 
-  
+    degree_centrality = centrality_degree(mode = "all"),
+    eigen_centrality = centrality_eigen()
+  ) %>%
+  mutate(combined_centrality = degree_centrality * eigen_centrality) %>%
+  arrange(desc(combined_centrality)) 
 mc2_graph
 
 ```
+Below code chunk to find out the top 20 id that has a high combined degree and eigenvector centrality score. 
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+#Select the top 20 IDs based on centrality value
+top_20_ids <- mc2_graph %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  pull(id) %>%
+  head(20)
+
+top_20_ids
+
+```
+
+Bsed on the table above, we can see that the top 20 actors with high combined degree and eigen centrality value, include Mar del Este CJSC, Caracola del Sol Services and hǎi dǎn Corporation Wharf.
 
 ::: callout-note
 ## Things to learn
@@ -257,10 +287,6 @@ mc2_graph
 ## 4.2 Determining the type of entity the id belongs to
 
 ```{r}
-#| echo: false
-#| fig-width: 4
-#| fig-height: 4
-
 #Specify what entity the id could be 
 mc2_graph <- mc2_graph %>%
   mutate(
@@ -273,10 +299,17 @@ mc2_graph <- mc2_graph %>%
 
 ```
 
+### 4.2.1 Counting number of entities for each business type
+
 ```{r}
-#| echo: false
-#| fig-width: 4
+#| code-fold: true
+#| code-summary: "Show the code"
 #| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
 
 #Count the how many id belong to each entity
 vessels_count <- mc2_graph %>%
@@ -297,32 +330,150 @@ both_count <- mc2_graph %>%
   filter(node_type == "vessels/transshipment") %>%
   nrow()
 
-cat("Number of vessels:", vessels_count, "\n")
-cat("Number of transshipment:", transhipment_count, "\n")
-cat("Number of vessels/transshipment:", both_count, "\n")
+# cat("Number of vessels:", vessels_count, "\n")
+# cat("Number of transshipment:", transhipment_count, "\n")
+# cat("Number of vessels/transshipment:", both_count, "\n")
 
 ```
 
-After cleaning up the data, we have a total of 29 vessels, 21 transshipment and 74 companies that may be either a vessel or transshipment to work with for our analysis.
+After cleaning up the data, we have a total of 529 vessels, 388 transshipment and 13 companies that may be either a vessel or transshipment to work with for our analysis.
 
 ::: callout-note
 ## Note
 
--   If in_degree_centrality == 0, it means that the company is most likely a pure exporter and highly likely a carrier or vessel.
+-   If in_degree_centrality == 0, it means that the company is most likely a pure exporter and highly likely a vessel.
 
--   If out_degree_centrality == 0, it means that the company is most likely a pure importer and highly likely involved in transhipment.
+-   If out_degree_centrality == 0, it means that the company is most likely a pure importer and highly likely involved in transshipment.
 
--   If in_degree_centrality \> 0 & out_degree_centrality \> 0, the company is most likely both a vessel or transhipment.
+-   If in_degree_centrality \> 0 & out_degree_centrality \> 0, the company is most likely both a vessel or transshipment.
 :::
 
-## 4.3 Community Detection Analysis
-
-Next, we will use the `group_edge_betweenness` function. It works by iteratively removing the edges with the highest betweenness centrality, which is a measure of the number of shortest paths that pass through an edge. By removing these edges, the graph is divided into clusters or communities.
+## 4.3 Visualising the network graph with ggraph
 
 ```{r}
-#| echo: false
-#| fig-width: 5
+#| code-fold: true
+#| code-summary: "Show the code"
 #| fig-height: 5
+#| fig-width: 8
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+ggraph(mc2_graph,
+       layout = "fr") +
+  geom_edge_link(aes(width=weights), 
+                 alpha=0.2) +
+  geom_node_point(aes(colour = node_type)) +
+  theme_graph() +
+  labs(title = "Network graph of global transhipment activities")
+
+```
+
+## 4.4 Flag Based Network
+
+To gain a better understanding of the prevalence of the types of flags in the transshipment events, we can find out which country the vessels tends to be most often associated with when shipping.
+
+And we can see that vessels tend to ship to Merigrad and Marebak.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+country_id_counts_shp <- mc2_graph %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  filter(in_degree_centrality == 0) %>% # filter out for the vessels 
+  group_by(shpcountry) %>%
+  summarise(id_count = n_distinct(id)) %>%
+  arrange(desc(id_count))
+
+head(country_id_counts_shp)
+
+```
+
+Also, we can see that for transshipment, companies are most often associated with Oceanus when receiving their products.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 5
+#| fig-width: 8
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+country_id_counts_rcv <- mc2_graph %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  filter(out_degree_centrality == 0) %>% # filter out for the vessels 
+  group_by(rcvcountry) %>%
+  summarise(id_count = n_distinct(id)) %>%
+  arrange(desc(id_count))
+
+head(country_id_counts_rcv)
+```
+
+## 4.5 Top 20 transshipment companies trading frequencies
+
+Check out the trading frequencies of the top 20 transshipment companies trading frequencies over the years. These top 20 companies are those who has high in-degree centrality.
+
+We can see that the total transactions fluctuates more for Caracola del Sol Services, Mar del Este CJSC and Pao gan SE Seal.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 5
+#| fig-width: 8
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+#Select the top 20 IDs based on centrality value
+top_20_ids <- mc2_graph %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  arrange(desc(in_degree_centrality)) %>%
+  pull(id) %>%
+  head(20)
+
+# Filter the mc2_edges_aggregated_top dataframe
+filtered_edges_entities <- mc2_edges_aggregated_top %>%
+  filter(target %in% top_20_ids) %>%
+  group_by(Year, target) %>%
+  summarise(total_weight = sum(weights))
+
+# Plot the aggregated weights
+p <- ggplot(filtered_edges_entities, aes(x = Year, y = total_weight, color = target)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "Year", y = "Total transactions", title = "Number of Transactions by Year") +
+  scale_color_discrete(name = "Target Entity")
+
+ggplotly(p)
+```
+
+## 4.6 Community Detection Analysis
+
+Next, we will do a community detection analysis using the `group_edge_betweenness` function. It works by iteratively removing the edges with the highest betweenness centrality, which is a measure of the number of shortest paths that pass through an edge. By removing these edges, the graph is divided into clusters or communities.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 5
+#| fig-width: 8
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
 
 set.seed(123)
 mc2_graph <- mc2_graph %>%
@@ -344,30 +495,46 @@ g_mcgraph <- mc2_graph %>%
 g_mcgraph
 ```
 
-As seen from the community detection graph above, there is only 1 community, community 1, that meet the criteria of community size \>2. The node who has the highest in-degree centrality value is Mar del Este CJSC. Below is the code chunck use to find out the who is the transshipment leader for each community.
+As seen from the community detection graph above, after filtering for community size \> 2, there are 9 community shown, and looking at the connectivity and density of the graph, it seems that community 1, seems to be the most densely populated. Thus, for the following analysis, we shall focus on community 1.
+
+The code chunk below can be used to find out which node has the highest in-degree centrality for in community 1. And we can see that within community 1, Mar del Este CJSC has the highest in-degree centrality score.
 
 ```{r}
-#| echo: false
-#| fig-width: 5
+#| code-fold: true
+#| code-summary: "Show the code"
 #| fig-height: 5
+#| fig-width: 8
 
-# Find the leader for each community based on in_degree centrality
-Transhipment_leader <- mc2_graph %>%
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+indegree_community <- mc2_graph %>%
   activate(nodes) %>%
-  group_by(community) %>%
-  filter(in_degree_centrality == max(in_degree_centrality)) %>%
-  ungroup()
+  filter(community == 1) %>%
+  mutate(in_degree_centrality_community = centrality_degree(mode = "in")) %>%
+  arrange(desc(in_degree_centrality_community)) %>%
+  as_tibble()
 
-# Print the ID and community of the leaders
-print(select(Transhipment_leader, id, community))
+head(indegree_community, 5)
 ```
 
-Next, we will further investigate community 1 by plotting its network graph over the years from 2028-2034 to see if we can find any insights.
+## 4.7 Plotting the visNetwork graph of transshipment leader 
+
+Next, we will further investigate our highest transshipment node, `Mar del Este CJSC`, by plotting its network graph over the years from 2028-2034 to see if we can find any insights.
+
+Looking at the network graph below, we can see that initially in 2028, Marine Mates NV Worldwide and ReefRider Foods Lte Corporation Family supplies goods to Mar del Este CSJC but disappears in 2029. And in 2032, there are 2 new suppliers, The Salty Dog Limited Liability Company and Turkish Salmon A/S Marine, however, both disappeared in 2034. 
+
 
 ```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 6
+#| fig-width: 9
+
 #| echo: false
-#| fig-width: 5
-#| fig-height: 5
+#| fig-width: 3
+#| fig-height: 3
 
 # Filter the year and id in edges and the corresponding id
 filtered_graph_2028 <- mc2_graph %>%
@@ -402,7 +569,7 @@ nodes_df_2028<- nodes_df_2028 %>%
   rename(group = node_type) 
 
 # Plot the network graph with labeled nodes using visNetwork
-visNetwork(nodes_df_2028, edges_df_2028, submain = list(text = "Network Graph ofMar del Este CJSC in 2028 ",
+vis_2028 <- visNetwork(nodes_df_2028, edges_df_2028, submain = list(text = "Network Graph of Mar del Este CJSC in 2028 ",
                           style = "font-family:Comic Sans MS;color:#000000;font-size:15px;text-align:center;")) %>%
   visIgraphLayout(layout = "layout_with_fr") %>%
   visEdges(arrows = "to") %>%
@@ -411,15 +578,21 @@ visNetwork(nodes_df_2028, edges_df_2028, submain = list(text = "Network Graph of
     nodesIdSelection = TRUE,
   ) %>%
   visLegend() %>%
-  visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE) 
-
+  visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE)
+vis_2028
 ```
 
 ```{r}
-#| echo: false
-#| fig-width: 5
-#| fig-height: 5
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 6
+#| fig-width: 9
 
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+# Filter the year and id in edges and the corresponding id
 filtered_graph_2029 <- mc2_graph %>%
   activate(edges) %>%
   filter(Year == 2029, to == 1)
@@ -448,11 +621,11 @@ nodes_df_2029 <- filtered_graph_2029 %>%
   select(everything()) %>%
   relocate(id, .before = label)
 
-filtered_graph_2029<- filtered_graph_2029 %>%
+nodes_df_2029<- nodes_df_2029 %>%
   rename(group = node_type) 
 
 # Plot the network graph with labeled nodes using visNetwork
-visNetwork(nodes_df_2029, edges_df_2029, submain = list(text = "Network Graph ofMar del Este CJSC in 2029 ",
+vis_2029 <- visNetwork(nodes_df_2029, edges_df_2029, submain = list(text = "Network Graph of Mar del Este CJSC in 2029 ",
                           style = "font-family:Comic Sans MS;color:#000000;font-size:15px;text-align:center;")) %>%
   visIgraphLayout(layout = "layout_with_fr") %>%
   visEdges(arrows = "to") %>%
@@ -461,14 +634,20 @@ visNetwork(nodes_df_2029, edges_df_2029, submain = list(text = "Network Graph of
     nodesIdSelection = TRUE,
   ) %>%
   visLegend() %>%
-  visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE) 
+  visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE)
+vis_2029
 
 ```
 
 ```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 6
+#| fig-width: 9
+
 #| echo: false
-#| fig-width: 5
-#| fig-height: 5
+#| fig-width: 3
+#| fig-height: 3
 
 filtered_graph_2030 <- mc2_graph %>%
   activate(edges) %>%
@@ -502,7 +681,7 @@ nodes_df_2030<- nodes_df_2030 %>%
   rename(group = node_type) 
 
 # Plot the network graph with labeled nodes using visNetwork
-visNetwork(nodes_df_2030, edges_df_2030, submain = list(text = "Network Graph ofMar del Este CJSC in 2030 ",
+vis_2030 <- visNetwork(nodes_df_2030, edges_df_2030, submain = list(text = "Network Graph ofMar del Este CJSC in 2030 ",
                           style = "font-family:Comic Sans MS;color:#000000;font-size:15px;text-align:center;")) %>%
   visIgraphLayout(layout = "layout_with_fr") %>%
   visEdges(arrows = "to") %>%
@@ -512,14 +691,19 @@ visNetwork(nodes_df_2030, edges_df_2030, submain = list(text = "Network Graph of
   ) %>%
   visLegend() %>%
   visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE) 
-
+vis_2030
 
 ```
 
 ```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 6
+#| fig-width: 9
+
 #| echo: false
-#| fig-width: 5
-#| fig-height: 5
+#| fig-width: 3
+#| fig-height: 3
 
 filtered_graph_2031 <- mc2_graph %>%
   activate(edges) %>%
@@ -553,7 +737,7 @@ nodes_df_2031<- nodes_df_2031 %>%
   rename(group = node_type) 
 
 # Plot the network graph with labeled nodes using visNetwork
-visNetwork(nodes_df_2031, edges_df_2031, submain = list(text = "Network Graph ofMar del Este CJSC in 2031 ",
+vis_2031 <- visNetwork(nodes_df_2031, edges_df_2031, submain = list(text = "Network Graph ofMar del Este CJSC in 2031 ",
                           style = "font-family:Comic Sans MS;color:#000000;font-size:15px;text-align:center;")) %>%
   visIgraphLayout(layout = "layout_with_fr") %>%
   visEdges(arrows = "to") %>%
@@ -563,13 +747,18 @@ visNetwork(nodes_df_2031, edges_df_2031, submain = list(text = "Network Graph of
   ) %>%
   visLegend() %>%
   visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE) 
-
+vis_2031
 ```
 
 ```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 6
+#| fig-width: 9
+
 #| echo: false
-#| fig-width: 5
-#| fig-height: 5
+#| fig-width: 3
+#| fig-height: 3
 
 filtered_graph_2032 <- mc2_graph %>%
   activate(edges) %>%
@@ -603,7 +792,7 @@ nodes_df_2032<- nodes_df_2032 %>%
   rename(group = node_type) 
 
 # Plot the network graph with labeled nodes using visNetwork
-visNetwork(nodes_df_2032, edges_df_2032, submain = list(text = "Network Graph ofMar del Este CJSC in 2032 ",
+vis_2032 <- visNetwork(nodes_df_2032, edges_df_2032, submain = list(text = "Network Graph ofMar del Este CJSC in 2032 ",
                           style = "font-family:Comic Sans MS;color:#000000;font-size:15px;text-align:center;")) %>%
   visIgraphLayout(layout = "layout_with_fr") %>%
   visEdges(arrows = "to") %>%
@@ -613,13 +802,18 @@ visNetwork(nodes_df_2032, edges_df_2032, submain = list(text = "Network Graph of
   ) %>%
   visLegend() %>%
   visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE) 
-
+vis_2032
 ```
 
 ```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 6
+#| fig-width: 9
+
 #| echo: false
-#| fig-width: 5
-#| fig-height: 5
+#| fig-width: 3
+#| fig-height: 3
 
 filtered_graph_2033 <- mc2_graph %>%
   activate(edges) %>%
@@ -653,7 +847,7 @@ nodes_df_2033<- nodes_df_2033 %>%
   rename(group = node_type) 
 
 # Plot the network graph with labeled nodes using visNetwork
-visNetwork(nodes_df_2033, edges_df_2033, submain = list(text = "Network Graph ofMar del Este CJSC in 2033 ",
+vis_2033 <- visNetwork(nodes_df_2033, edges_df_2033, submain = list(text = "Network Graph ofMar del Este CJSC in 2033 ",
                           style = "font-family:Comic Sans MS;color:#000000;font-size:15px;text-align:center;")) %>%
   visIgraphLayout(layout = "layout_with_fr") %>%
   visEdges(arrows = "to") %>%
@@ -663,13 +857,18 @@ visNetwork(nodes_df_2033, edges_df_2033, submain = list(text = "Network Graph of
   ) %>%
   visLegend() %>%
   visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE) 
-
+vis_2033
 ```
 
 ```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 6
+#| fig-width: 9
+
 #| echo: false
-#| fig-width: 5
-#| fig-height: 5
+#| fig-width: 3
+#| fig-height: 3
 
 filtered_graph_2034 <- mc2_graph %>%
   activate(edges) %>%
@@ -703,7 +902,7 @@ nodes_df_2034<- nodes_df_2034 %>%
   rename(group = node_type) 
 
 # Plot the network graph with labeled nodes using visNetwork
-visNetwork(nodes_df_2034, edges_df_2034, submain = list(text = "Network Graph ofMar del Este CJSC in 2034 ",
+vis_2034 <- visNetwork(nodes_df_2034, edges_df_2034, submain = list(text = "Network Graph ofMar del Este CJSC in 2034 ",
                           style = "font-family:Comic Sans MS;color:#000000;font-size:15px;text-align:center;")) %>%
   visIgraphLayout(layout = "layout_with_fr") %>%
   visEdges(arrows = "to") %>%
@@ -713,9 +912,18 @@ visNetwork(nodes_df_2034, edges_df_2034, submain = list(text = "Network Graph of
   ) %>%
   visLegend() %>%
   visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE) 
-
+vis_2034
 ```
 
 # 5. References
 
-https://ona-book.org/vertex-importance.html https://smu-my.sharepoint.com/personal/tskam_smu_edu_sg/Documents/VAST%20Challenge%202023/References/Network%20Analysis%20and%20Visualisation/Identifying%20Central%20Carriers%20and%20Detecting%20Key%20Communities%20Within%20the%20Global%20Fish%20Transshipment%20Networks.pdf https://datastorm-open.github.io/visNetwork/edges.html
+A. Petrossian,G., Barthuly,B.,C. Sosnowski,M.(2022).Identifying Central Carriers and Detecting Key Communities Within the Global Fish Transshipment Networks. Retrieved June 4, 2032, from <https://www.frontiersin.org/articles/10.3389/fmars.2022.798893/full>
+
+J. Park,A.,Z. Stamato,S.(2020).Social Network Analysis of Global Transshipment: A Framework for Discovering Illegal Fishing.
+
+Datastorm(nd).visNetowork,an R package for an interactive network visualistion. Retrieved June 4, 2032, from <https://datastorm-open.github.io/visNetwork/edges.html>
+
+[https://tidygraph.data-imaginist.com/index.html https://ona-book.org/vertex-importance.html](https://tidygraph.data-imaginist.com/index.html https://ona-book.org/vertex-importance.html)
+[6 Vertex Importance and Centrality \| Handbook of Graphs and Networks in People Analytics (ona-book.org)](https://ona-book.org/vertex-importance.html)
+
+
