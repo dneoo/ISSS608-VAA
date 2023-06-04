@@ -26,7 +26,7 @@ The data is taken from the [Mini-Challenge 2](https://vast-challenge.github.io/2
 The code chunk below uses p_load() of pacman package to check if packages are installed in the computer. If they are, then they will be launched into R. The R packages installed are:
 
 ```{r}
-pacman::p_load(jsonlite,tidygraph,ggraph,visNetwork,tidyverse,lubridate,igraph,plotly,treemap)
+pacman::p_load(jsonlite,tidygraph,ggraph,visNetwork,tidyverse,lubridate,igraph,plotly)
 ```
 
 ## 3.2 Loading the Data
@@ -251,7 +251,8 @@ mc2_graph <- mc2_graph %>%
 mc2_graph
 
 ```
-Below code chunk to find out the top 20 id that has a high combined degree and eigenvector centrality score. 
+
+Below code chunk to find out the top 20 id that has a high combined degree and eigenvector centrality score.
 
 ```{r}
 #| code-fold: true
@@ -519,12 +520,12 @@ indegree_community <- mc2_graph %>%
 head(indegree_community, 5)
 ```
 
-## 4.7 Plotting the visNetwork graph of transshipment leader 
+## 4.7 Plotting the visNetwork graph of transshipment leader
 
 Next, we will further investigate our highest transshipment node, `Mar del Este CJSC`, by plotting its network graph over the years from 2028-2034 to see if we can find any insights.
 
-Looking at the network graph below, we can see that initially in 2028, Marine Mates NV Worldwide and ReefRider Foods Lte Corporation Family supplies goods to Mar del Este CSJC but disappears in 2029. And in 2032, there are 2 new suppliers, The Salty Dog Limited Liability Company and Turkish Salmon A/S Marine, however, both disappeared in 2034. 
-
+::: panel-tabset
+## 2028
 
 ```{r}
 #| code-fold: true
@@ -581,6 +582,8 @@ vis_2028 <- visNetwork(nodes_df_2028, edges_df_2028, submain = list(text = "Netw
   visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE)
 vis_2028
 ```
+
+## 2029
 
 ```{r}
 #| code-fold: true
@@ -639,6 +642,8 @@ vis_2029
 
 ```
 
+## 2030
+
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
@@ -695,6 +700,8 @@ vis_2030
 
 ```
 
+## 2031
+
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
@@ -749,6 +756,8 @@ vis_2031 <- visNetwork(nodes_df_2031, edges_df_2031, submain = list(text = "Netw
   visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE) 
 vis_2031
 ```
+
+## 2032
 
 ```{r}
 #| code-fold: true
@@ -805,6 +814,8 @@ vis_2032 <- visNetwork(nodes_df_2032, edges_df_2032, submain = list(text = "Netw
 vis_2032
 ```
 
+#2033
+
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
@@ -860,6 +871,8 @@ vis_2033 <- visNetwork(nodes_df_2033, edges_df_2033, submain = list(text = "Netw
 vis_2033
 ```
 
+## 2034
+
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
@@ -914,6 +927,197 @@ vis_2034 <- visNetwork(nodes_df_2034, edges_df_2034, submain = list(text = "Netw
   visInteraction(zoomView = TRUE, dragNodes = TRUE, dragView = TRUE, navigationButtons = TRUE) 
 vis_2034
 ```
+:::
+
+### 4.7.1 Summary of the changes of transshipment leader over the years
+
+Below is the code chunk to find if there is any missing nodes or addition of new nodes over the different time period:
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+# Diff 2028-2029 
+
+# Check if all nodes in nodes_df_2028 are present in nodes_df_2029
+missing_nodes_1 <- setdiff(nodes_df_2028$id, nodes_df_2029$id)
+
+# Get the corresponding names for the missing nodes
+missing_node_names_1 <- nodes_df_2028$label[nodes_df_2028$id %in% missing_nodes_1]
+
+# Identify any new nodes in nodes_df_2029
+new_nodes_1 <- setdiff(nodes_df_2029$id, nodes_df_2028$id)
+
+# Get the corresponding names for the missing nodes
+new_node_names_1 <- nodes_df_2029$label[nodes_df_2029$id %in% new_nodes_1]
+
+# # Print the missing node names with a comma after each label found
+# cat("Missing nodes: ", paste(missing_node_names_1, collapse = ", "), "\n")
+# # Print the new node names with a comma after each label found
+# cat("New nodes: ", paste(new_node_names_1, collapse = ", "), "\n")
+
+
+#Diff 2029-2030
+
+# Check if all nodes in nodes_df_2020 are present in nodes_df_2030
+missing_nodes_2 <- setdiff(nodes_df_2029$id, nodes_df_2030$id)
+
+# Get the corresponding names for the missing nodes
+missing_node_names_2 <- nodes_df_2029$label[nodes_df_2029$id %in% missing_nodes_2]
+
+# Identify any new nodes in nodes_df_2030
+new_nodes_2 <- setdiff(nodes_df_2030$id, nodes_df_2029$id)
+
+# Get the corresponding names for the missing nodes
+new_node_names_2 <- nodes_df_2030$label[nodes_df_2030$id %in% new_nodes_2]
+
+# # Print the missing node names with a comma after each label found
+# cat("Missing nodes: ", paste(missing_node_names_2, collapse = ", "), "\n")
+# # Print the new node names with a comma after each label found
+# cat("New nodes: ", paste(new_node_names_2, collapse = ", "), "\n")
+
+
+# Diff 2030-2031
+
+# Check if all nodes in nodes_df_2030 are present in nodes_df_2031
+missing_nodes_3 <- setdiff(nodes_df_2030$id, nodes_df_2031$id)
+
+# Get the corresponding names for the missing nodes
+missing_node_names_3 <- nodes_df_2030$label[nodes_df_2030$id %in% missing_nodes_3]
+
+# Identify any new nodes in nodes_df_2031
+new_nodes_3 <- setdiff(nodes_df_2031$id, nodes_df_2030$id)
+
+# Get the corresponding names for the missing nodes
+new_node_names_3 <- nodes_df_2031$label[nodes_df_2031$id %in% new_nodes_3]
+
+# # Print the missing node names with a comma after each label found
+# cat("Missing nodes: ", paste(missing_node_names_3, collapse = ", "), "\n")
+# # Print the new node names with a comma after each label found
+# cat("New nodes: ", paste(new_node_names_3, collapse = ", "), "\n")
+
+
+# Diff 2031-2032
+
+# Check if all nodes in nodes_df_2031 are present in nodes_df_2032
+missing_nodes_4 <- setdiff(nodes_df_2031$id, nodes_df_2032$id)
+
+# Get the corresponding names for the missing nodes
+missing_node_names_4 <- nodes_df_2031$label[nodes_df_2031$id %in% missing_nodes_4]
+
+# Identify any new nodes in nodes_df_2032
+new_nodes_4 <- setdiff(nodes_df_2032$id, nodes_df_2031$id)
+
+# Get the corresponding names for the missing nodes
+new_node_names_4 <- nodes_df_2032$label[nodes_df_2032$id %in% new_nodes_4]
+
+# # Print the missing node names with a comma after each label found
+# cat("Missing nodes: ", paste(missing_node_names_4, collapse = ", "), "\n")
+# # Print the new node names with a comma after each label found
+# cat("New nodes: ", paste(new_node_names_4, collapse = ", "), "\n")
+
+
+# Diff 2033-2034
+
+# Check if all nodes in nodes_df_2033 are present in nodes_df_2034
+missing_nodes_5 <- setdiff(nodes_df_2033$id, nodes_df_2034$id)
+
+# Get the corresponding names for the missing nodes
+missing_node_names_5 <- nodes_df_2033$label[nodes_df_2033$id %in% missing_nodes_5]
+
+# Identify any new nodes in nodes_df_2034
+new_nodes_5 <- setdiff(nodes_df_2034$id, nodes_df_2033$id)
+
+# Get the corresponding names for the missing nodes
+new_node_names_5 <- nodes_df_2034$label[nodes_df_2034$id %in% new_nodes_5]
+
+# # Print the missing node names with a comma after each label found
+# cat("Missing nodes: ", paste(missing_node_names_5, collapse = ", "), "\n")
+# # Print the new node names with a comma after each label found
+# cat("New nodes: ", paste(new_node_names_5, collapse = ", "), "\n")
+
+```
+
++---------------+---------------------------------------------------------------+
+| Year          | Findings                                                      |
++===============+===============================================================+
+| 2028 and 2029 | 6 Missing nodes:                                              |
+|               |                                                               |
+|               | 1.  Caracola Marina Lighthouse A/S Forwading                  |
+|               | 2.  Seashell Seekers Ltd Distribution                         |
+|               | 3.  Zanzibar Archipelago Incorporated International           |
+|               | 4.  Oceanfront Oasis AS Delivery                              |
+|               | 5.  Playa del Sol Incorporated, Kallianassa Fish AG Solutions |
+|               | 6.  TunaTime GmbH & Co. KG Export.                            |
++---------------+---------------------------------------------------------------+
+| 2029 - 2030   | 5 New nodes:                                                  |
+|               |                                                               |
+|               | 1.  Rift Valley fishery OJSC Enterprises                      |
+|               | 2.  Aqua Azul Oyster BV Freight                               |
+|               | 3.  suō yú Incorporated Seagull                               |
+|               | 4.  bái suō wěn lú Ltd. Corporation Freight                   |
+|               | 5.  Norwegian Fjord Plc Transit                               |
++---------------+---------------------------------------------------------------+
+| 2030 - 2031   | 13 Missing nodes:                                             |
+|               |                                                               |
+|               | 1.  Barents Sea Shrimp Plc                                    |
+|               | 2.  Haryana Sea Marine ecology                                |
+|               | 3.  Gambia River Ges.m.b.H. &                                 |
+|               | 4.  Mar y Viento Ltd. Liability Co Captain                    |
+|               | 5.  Gulf of Tadjoura Corp Shipping                            |
+|               | 6.  Barco de Plata SE                                         |
+|               | 7.  Dutch Eel LLC Express                                     |
+|               | 8.  Icelandic Cod GmbH & Co. KG Express                       |
+|               | 9.  Rift Valley fishery OJSC Enterprises                      |
+|               | 10. Aqua Azul Oyster BV Freight                               |
+|               | 11. suō yú Incorporated Seagull                               |
+|               | 12. bái suō wěn lú Ltd. Corporation Freight                   |
+|               | 13. Norwegian Fjord Plc Transit                               |
++---------------+---------------------------------------------------------------+
+| 2031 - 2032   | 20 New nodes:                                                 |
+|               |                                                               |
+|               | 1.  Isla del Tesoro SE Transport                              |
+|               | 2.  Caracola del Este Incorporated                            |
+|               | 3.  Spanish Anchovy OJSC International                        |
+|               | 4.  SaltSea & Inc Carriers                                    |
+|               | 5.  Mar de la Aventura Limited Liability Company              |
+|               | 6.  Mar de Cristalino OJSC                                    |
+|               | 7.  jīn qiāng yú Express                                      |
+|               | 8.  Mar y Viento Abalone N.V. Marine conservation             |
+|               | 9.  Playa de Coral Distribution Marine sanctuary              |
+|               | 10. xiǎo xiā A/S Holdings                                     |
+|               | 11. Marine Mates Pic Delivery                                 |
+|               | 12. OceanKing s ship Pic Logistics                            |
+|               | 13. Lake Kariba GmbH & Co. KG                                 |
+|               | 14. Mar y Viento Ltd. Liability Co Captain                    |
+|               | 15. AquaBite Limited Liability Company Marine                 |
+|               | 16. SurfSide GmbH & Co. KG Consulting                         |
+|               | 17. CoralCrest Limited Liability Company Seabass              |
+|               | 18. Black Sea Anchovy NV                                      |
+|               | 19. Mar del Oeste LLC Marine                                  |
+|               | 20. Turkish Salmon LC Barracuda                               |
++---------------+---------------------------------------------------------------+
+| 2032 - 2034   | 10 Missing nodes:                                             |
+|               |                                                               |
+|               | 1.  Ob River LLC and Son's                                    |
+|               | 2.  Pez Dorado Inc Freight                                    |
+|               | 3.  Ola de la Costa Ges.m.b.H.                                |
+|               | 4.  Marine Adventures Ltd Cod                                 |
+|               | 5.  Coral Reef Oyj Solutions                                  |
+|               | 6.  Estrella de Mar AB Delivery                               |
+|               | 7.  Greek ermen Kga Freight                                   |
+|               | 8.  Black Sea Anchovy NV                                      |
+|               | 9.  Mar del Oeste LLC Marine                                  |
+|               | 10. Ola del Este Ltd                                          |
++---------------+---------------------------------------------------------------+
+
+Also, we can see from the networkgraph that in 2028, Marine Mates NV Worldwide and ReefRider Foods Lte Corporation Family supplies goods to Mar del Este CSJC but disappears in 2029. And in 2032, there are 2 new suppliers, The Salty Dog Limited Liability Company and Turkish Salmon A/S Marine, however, both disappeared in 2034.
 
 # 5. References
 
@@ -923,7 +1127,4 @@ J. Park,A.,Z. Stamato,S.(2020).Social Network Analysis of Global Transshipment: 
 
 Datastorm(nd).visNetowork,an R package for an interactive network visualistion. Retrieved June 4, 2032, from <https://datastorm-open.github.io/visNetwork/edges.html>
 
-[https://tidygraph.data-imaginist.com/index.html https://ona-book.org/vertex-importance.html](https://tidygraph.data-imaginist.com/index.html https://ona-book.org/vertex-importance.html)
-[6 Vertex Importance and Centrality \| Handbook of Graphs and Networks in People Analytics (ona-book.org)](https://ona-book.org/vertex-importance.html)
-
-
+[https://tidygraph.data-imaginist.com/index.html https://ona-book.org/vertex-importance.html](https://tidygraph.data-imaginist.com/index.html%20https://ona-book.org/vertex-importance.html) [6 Vertex Importance and Centrality \| Handbook of Graphs and Networks in People Analytics (ona-book.org)](https://ona-book.org/vertex-importance.html)
