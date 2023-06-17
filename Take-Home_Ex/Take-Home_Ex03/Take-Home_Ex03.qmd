@@ -11,13 +11,13 @@ execute:
 
 # 1. Background
 
-The country of Oceanus has sought FishEye International's help in identifying companies possibly engaged in illegal, unreported, and unregulated (IUU) fishing. As part of the collaboration, FishEye's analysts received import/export data for Oceanus' marine and fishing industries.
+FishEye International, a non-profit focused on countering illegal, unreported, and unregulated (IUU) fishing, has been given access to an international finance corporation’s database on fishing related companies. In the past, FishEye has determined that companies with anomalous structures are far more likely to be involved in IUU (or other “fishy” business). FishEye has transformed the database into a knowledge graph. It includes information about companies, owners, workers, and financial status. FishEye is aiming to use this graph to identify anomalies that could indicate a company is involved in IUU.
 
-With reference to [Mini-Challenge 3](https://vast-challenge.github.io/2023/MC3.html) of [VAST Challenge 2023](https://vast-challenge.github.io/2023/) and by using appropriate static and interactive statistical graphics methods, we will be helping FishEye to identify companies that may be engaged in illegal fishing.
+With reference to [Mini-Challenge 3](https://vast-challenge.github.io/2023/MC3.html) of [VAST Challenge 2023](https://vast-challenge.github.io/2023/) and by using appropriate static and interactive statistical graphics methods, we will be helping FishEye to better understand fishing business anomalies.
 
 # 2. Data Source
 
-The data is taken from the [Mini-Challenge 3](https://vast-challenge.github.io/2023/MC3.html) of [VAST Challenge 2023](https://vast-challenge.github.io/2023/). 
+The data is taken from the [Mini-Challenge 3](https://vast-challenge.github.io/2023/MC3.html) of [VAST Challenge 2023](https://vast-challenge.github.io/2023/).
 
 # 3. Data Preparation
 
@@ -26,7 +26,9 @@ The data is taken from the [Mini-Challenge 3](https://vast-challenge.github.io/2
 The code chunk below uses p_load() of pacman package to check if packages are installed in the computer. If they are, then they will be launched into R. The R packages installed are:
 
 ```{r}
-pacman::p_load(jsonlite,tidygraph,ggraph,visNetwork,tidyverse,graphlayouts, ggforce, tidytext)
+pacman::p_load(jsonlite, tidygraph, ggraph, 
+               visNetwork, graphlayouts, ggforce, 
+               skimr, tidytext, tidyverse, patchwork, ggiraph)
 ```
 
 ## 3.2 Loading the Data
@@ -34,44 +36,769 @@ pacman::p_load(jsonlite,tidygraph,ggraph,visNetwork,tidyverse,graphlayouts, ggfo
 `fromJSON()` of jsonlite package is used to import MC3.json into R environment.
 
 ```{r}
-Mc3_data <- fromJSON("data/MC3.json")
+mc3_data <- fromJSON("data/MC3.json")
 ```
 
-```{r}
-mc3_edges <- as_tibble(Mc3_data$links)
+The output is called mc3_data. It is a large list R object.
 
-```
+## 3.3 Extracting edges 
+
+The code chunk below will be used to extract the links data.frame of mc3_data and save it as a tibble data.frame called mc3_edges.
 
 ```{r}
-mc3_edges <- as_tibble(Mc3_data$links) %>%
+mc3_edges <- as_tibble(mc3_data$links) %>% 
   distinct() %>%
   mutate(source = as.character(source),
          target = as.character(target),
          type = as.character(type)) %>%
   group_by(source, target, type) %>%
-  summarise(weights = n()) %>%
-  filter(source != target) %>%
+    summarise(weights = n()) %>%
+  filter(source!=target) %>%
   ungroup()
 
 ```
+
+## 3.4 Extracting nodes
+
+The code chunk below will be used to extract the nodes data.frame of mc3_data and save it as a tibble data.frame called mc3_nodes.
+
 ```{r}
-mc3_nodes <- as_tibble(Mc3_data$nodes) %>%
+mc3_nodes <- as_tibble(mc3_data$nodes) %>%
   mutate(country = as.character(country),
          id = as.character(id),
          product_services = as.character(product_services),
          revenue_omu = as.numeric(as.character(revenue_omu)),
          type = as.character(type)) %>%
-  select(id, country, type, revenue_omu, product_services) #select() used to organise the sequence of col 
+  select(id, country, type, revenue_omu, product_services) #select() used to organise the sequence of col
+  
+```
+
+## 3.4 Initial Data Exploration 
+
+### 3.4.1 Exploring the edges data frame
+
+In the code chunk below, `skim()` of skimr package is used to display the summary statistics of mc3_edges tibble data frame.
+
+```{r}
+skim(mc3_edges)
+
+```
+The report above reveals that there is no missing values in all fields.
+
+In the code chunk below, `datatable()` of DT package is used to display mc3_edges tibble data frame as an interactive table on the html document.
+
+```{r}
+DT::datatable(mc3_edges)
+```
+
+Now, we will plot the distribution of the type of relationship that exist between the source and target and their corresponding frequency.  
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 6
+#| fig-width: 5
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+hist_type <- ggplot(data = mc3_edges,
+       aes(x = type)) +
+  geom_bar() +
+  geom_text(stat = 'count', aes(label = ..count..), vjust = -0.1) +
+  labs(title = "Distribution of Relationship Types", x = "Type", y = "Count") +
+  theme(plot.title = element_text(face = "bold"))
+
+# hist_type
+```
+
+There are two types of relationship; Beneficial Owner and Company Contacts, with a total of 16,792 count for the former and 7244 for the latter. 
+
+Next, we will explore further the number of companies that a owner usually owns. If we observe that the owner owns more companies compared to the norm, these owners may be flagged as suspicious and we could further focus our investigation on them. 
+
+To begin, we will first filter out those type == "Beneficial Owner" and the code chunk are as shown below, 
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+mc3_edges_owner <- mc3_edges %>%
+  filter(type == "Beneficial Owner") %>% 
+  group_by(target, type) %>%
+    summarise(no_of_companies = n()) %>%
+  ungroup()
+mc3_edges_owner
+```
+
+We can also plot out the distribution of companies beneficial owners own using `ggplot`. 
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 7
+#| fig-width: 5
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+# Create a ggplot histogram
+gg_hist_own <- ggplot(mc3_edges_owner, aes(x = no_of_companies)) +
+  geom_histogram() +
+  labs(title = "No of companies beneficial owners own", x = "No of companies", y = "Count") +
+  theme(plot.title = element_text(face = "bold")) +
+  scale_x_continuous(breaks = seq(min(mc3_edges_owner$no_of_companies), max(mc3_edges_owner$no_of_companies), by = 1))
+
+# Calculate frequency counts for each bin
+freq_counts <- table(mc3_edges_owner$no_of_companies)
+
+# Create a data frame for labels
+label_data <- data.frame(x = as.numeric(names(freq_counts)), y = as.numeric(freq_counts))
+
+# Add frequency labels to the plot
+gg_hist_own <- gg_hist_own +
+  geom_text(
+    data = label_data,
+    aes(x = x, y = y, label = y),
+    vjust = -0.5,
+    size = 3
+  )
+
+# Display the ggplot histogram
+# gg_hist_own
+
 
 ```
 
+We can combine the plot of the distribution of the type of relationship and the distribution of companies beneficial owners own using `patchwork`.
 
-## 3.3 Data Wrangling
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 8
+#| fig-width: 6
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+combined_plot <- hist_type / gg_hist_own
+combined_plot
+
+```
+
+As we can see above, there are a small percentage (<0.5%) of beneficial owners that own more than 3 companies. These owners will be flagged as suspicious, and we will perform further investigations on them. 
+
+Next, I will create a new dataframe for edge called `mc3_edges_with_no_of_companies` which has the no_of_companies column added in. 
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+# Join the no_of_companies column from mc3_edges_owner into mc3_edges
+mc3_edges_with_no_of_companies <- mc3_edges %>%
+  left_join(mc3_edges_owner %>% select(target, no_of_companies),
+            by = c("target" = "target")) %>%
+  mutate(no_of_companies = ifelse(is.na(no_of_companies), 0, no_of_companies))
+
+
+# View the updated mc3_edges
+mc3_edges_with_no_of_companies
+```
+
+### 3.4.3 Exploring the nodes data frame
+
+In the code chunk below, `skim()` of skimr package is used to display the summary statistics of mc3_nodes tibble data frame.
+
+```{r}
+skim(mc3_nodes)
+```
+
+In the code chunk below, `datatable()` of DT package is used to display mc3_nodes tibble data frame as an interactive table on the html document.
+
+```{r}
+DT::datatable(mc3_nodes)
+```
+
+For product services column that have NA values, we will input the value as "0".
+For revenue_omu column that has NA or unknown value, we will replace it as "unknown".
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+mc3_nodes <- mc3_nodes %>%
+  mutate(product_services = ifelse(product_services == "character(0)", "unknown", product_services),
+         revenue_omu = ifelse(revenue_omu == "" | is.na(revenue_omu), "0", revenue_omu))
+```
+
+
+Distribution of the type of nodes 
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 5
+#| fig-width: 5
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+hist_type_node <- ggplot(data = mc3_nodes,
+       aes(x = type)) +
+  geom_bar()+
+  geom_text(stat = 'count', aes(label = ..count..), vjust = -0.1) +
+  labs(title = "Distribution of Node Type", x = "Type", y = "Count") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold")) 
+  
+#hist_type_node
+```
+
+Distribution of number of countries for each id 
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+# Count the number of unique countries for each ID
+country_counts <- mc3_nodes %>%
+  group_by(id) %>%
+  summarize(unique_countries = n_distinct(country))
+
+#Calculate the no of unique countries each ID has
+
+# Calculate the frequency count for each country
+frequency_table_country <- table(country_counts$unique_countries)
+
+# Convert the frequency table to a data frame
+frequency_df_country <- as.data.frame(frequency_table_country)
+
+# Rename the columns
+colnames(frequency_df_country) <- c("Unique Countries", "Frequency")
+
+# Display the frequency table
+frequency_df_country
+```
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 8
+#| fig-width: 5
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+# Plot the frequency table as a bar plot with labels
+hist_country <- ggplot(frequency_df_country, aes(x = `Unique Countries`, y = Frequency)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_text(aes(label = Frequency), vjust = -0.5, size = 3.5) +  # Add labels to the bars
+  labs(title = "Count of Countries for each ID",
+       x = "No of Countries",
+       y = "Count") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold"))
+#hist_country
+```
+
+From the above plot, we could see there are 146 ids that have more than 1 countries, which calls for suspicious. 
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+# Count the number of unique rev for each ID
+rev_counts <- mc3_nodes %>%
+  group_by(id) %>%
+  summarize(unique_rv = n_distinct(revenue_omu))
+
+# Display the resulting data frame
+#rev_counts
+
+# Calculate the frequency count for each id
+frequency_table_rev <- table(rev_counts$unique_rv)
+
+# Convert the frequency table to a data frame
+frequency_df_rev <- as.data.frame(frequency_table_rev)
+
+# Rename the columns
+colnames(frequency_df_rev) <- c("Unique rev", "Frequency")
+
+# Display the frequency table
+frequency_df_rev
+```
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 8
+#| fig-width: 6
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+# Plot the frequency table as a bar plot with labels
+hist_rev <- ggplot(frequency_df_rev, aes(x = `Unique rev`, y = Frequency)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_text(aes(label = Frequency), vjust = -0.5, size = 3.5) +  # Add labels to the bars
+  labs(title = "Count of no of rev for each ID",
+       x = "No of rev",
+       y = "Count") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold"))
+#hist_rev
+
+```
+
+From the above, we can also see that there are 691 ids that have more than 1 revenue reflected. 
+
+Combine the different plots using `patchwork` as shown by code chunk below, 
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 9
+#| fig-width: 8
+
+#| echo: false
+#| fig-width: 4
+#| fig-height: 4
+
+combine_plot_node <- hist_type_node / (hist_country + hist_rev)
+combine_plot_node
+```
+
+Now, I want to a new dataframe for nodes called `mc3_nodes_updated` to store the frequency of countries and revenue we derive earlier on to see which id these belongs to.  
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+# Join the unique_countries column from country_counts into mc3_nodes
+mc3_nodes_updated <- mc3_nodes %>%
+  left_join(country_counts %>% select(id, unique_countries),
+            by = c("id" = "id")) 
+
+# Join the unique_rv column from rev_counts into mc3_nodes
+mc3_nodes_updated <- mc3_nodes_updated %>%
+  left_join(rev_counts %>% select(id, unique_rv),
+            by = c("id" = "id"))
+
+# View the updated mc3_nodes
+mc3_nodes_updated
+```
+
+
+### 3.4.2 Initial Network Visualisation and Analysis
+
+Building network model with tidygraph
+
+```{r}
+filtered_mc3_edges_owner <- mc3_edges_with_no_of_companies %>%
+  filter(no_of_companies > 3, type == "Beneficial Owner")
+filtered_mc3_edges_owner
+```
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+# Create a data frame with source nodes and rename column
+id1 <- filtered_mc3_edges_owner %>%
+  select(source) %>%
+  rename(id = source) %>%
+  mutate(type_node = "company")
+
+# Create a data frame with target nodes and rename column
+id2 <- filtered_mc3_edges_owner %>%
+  select(target, type) %>%
+  rename(id = target, type_node = type)
+
+# Combine the two data frames and remove duplicates
+mc3_nodes1 <- rbind(id1, id2) %>%
+  distinct() 
+
+#see if need add in some of the nodes detail 
+ mc3_nodes1
+```
+
+```{r}
+DT::datatable(mc3_nodes1)
+```
+
 
 ```{r}
 
+mc3_graph <- tbl_graph(nodes = mc3_nodes1,
+                       edges = filtered_mc3_edges_owner,
+                       directed = FALSE) %>%
+  mutate(betweenness_centrality = centrality_betweenness(),
+         closeness_centrality = centrality_closeness())
+
+```
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 5
+#| fig-width: 7
+
+#| echo: false
+#| fig-width: 4
+#| fig-height: 4
+
+# Set a seed for reproducibility
+set.seed(123)
+
+mc3_graph %>%
+ggraph(layout = "fr") +
+  geom_edge_link(aes(alpha=0.5)) +
+  geom_node_point(aes(
+    size = betweenness_centrality,
+    colors = "lightblue",
+    alpha = 0.5)) +
+  scale_size_continuous(range=c(1,10))+
+  theme_graph()
+
+```
+
+### Preparing Network Data for visNetowrk
+
+Instead of plotting static network graph, we can plot interactive network graph by using visNetwork package. Before we can plot a interactive network graph by using visNetwork package, we are required to prepare two tibble data frames, one for the nodes and the other one for the edges.
+
+Preparing edges tibble data frame
+
+```{r}
+edges_df <- mc3_graph %>%
+  activate(edges) %>%
+  as.tibble()
+edges_df
+```
+
+Preparing nodes tibble data frame
+
+In this section, we will prepare a nodes tibble data frame by using the code chunk below.
+
+```{r}
+nodes_df <- mc3_graph %>%
+  activate(nodes) %>%
+  as.tibble() %>%
+  rename(label = id) %>%
+  mutate(id=row_number()) %>%
+  select(everything()) %>%
+  relocate(id, .before = label)
+```
+
+```{r}
+nodes_df <- nodes_df %>%
+  rename(group = type_node) 
+```
+
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 3
+#| fig-width: 3
+
+#| echo: false
+#| fig-width: 4
+#| fig-height: 4
+
+# Plot the network graph with labeled nodes using visNetwork
+visNetwork(nodes_df, edges_df, main = list(text = "Network Graph of Company and Beneficial Owner",
+                                           style = "color: black; font-weight: bold; text-align: center;")) %>%
+  visIgraphLayout(layout = "layout_with_fr") %>%
+  visLayout(randomSeed = 123) %>%
+  addFontAwesome(name ="font-awesome") %>%
+  visGroups(groupname = "company", shape = "icon",
+            icon = list(code = "f0f7", color = "#000000")) %>%
+  visGroups(groupname = "Beneficial Owner", shape = "icon",
+            icon = list(code = "f2bd")) %>%
+  visLegend() %>%
+  visOptions(
+    highlightNearest = TRUE,
+    nodesIdSelection = TRUE,
+  ) %>%
+  visInteraction(
+    zoomView = TRUE,
+    dragNodes = TRUE,
+    dragView = TRUE,
+    navigationButtons = TRUE,
+    selectable = TRUE,  # Enable node selection
+    hover = TRUE,  # Enable hover effects
+  )
+```
+
+Similarly, to plot the network graph of Company and Company Contacts, we do the same as above, 
+
+```{r}
+#Filter the type = "Company Contacts"
+mc3_edges_cc<- mc3_edges_with_no_of_companies %>%
+  filter(no_of_companies > 3, type == "Company Contacts") 
+mc3_edges_cc
+```
+
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+# Create a data frame with source nodes and rename column
+id3 <- mc3_edges_cc %>%
+  select(source) %>%
+  rename(id = source) %>%
+  mutate(type_node = "company")
+
+# Create a data frame with target nodes and rename column
+id4 <- mc3_edges_cc %>%
+  select(target, type) %>%
+  rename(id = target, type_node = type)
+
+# Combine the two data frames and remove duplicates
+mc3_nodes2 <- rbind(id3, id4) %>%
+  distinct()
+
+#see if need add in some of the nodes detail 
+ 
+```
+
+```{r}
+mc3_graph2 <- tbl_graph(nodes = mc3_nodes2,
+                       edges = mc3_edges_cc,
+                       directed = FALSE) %>%
+  mutate(betweenness_centrality = centrality_betweenness(),
+         closeness_centrality = centrality_closeness())
+
+```
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 5
+#| fig-width: 7
+
+#| echo: false
+#| fig-width: 4
+#| fig-height: 4
+
+# Set a seed for reproducibility
+set.seed(123)
+
+mc3_graph2 %>%
+ggraph(layout = "fr") +
+  geom_edge_link(aes(alpha=0.5)) +
+  geom_node_point(aes(
+    size = betweenness_centrality,
+    colors = "lightblue",
+    alpha = 0.5)) +
+  scale_size_continuous(range=c(1,10))+
+  theme_graph()
 
 ```
 
 
+```{r}
+edges_df_2 <- mc3_graph2 %>%
+  activate(edges) %>%
+  as.tibble()
+```
 
+```{r}
+nodes_df_2 <- mc3_graph2 %>%
+  activate(nodes) %>%
+  as.tibble() %>%
+  rename(label = id) %>%
+  mutate(id=row_number()) %>%
+  select(everything()) %>%
+  relocate(id, .before = label)
+```
+
+```{r}
+nodes_df_2 <- nodes_df_2 %>%
+  rename(group = type_node) 
+```
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 3
+#| fig-width: 3
+
+#| echo: false
+#| fig-width: 4
+#| fig-height: 4
+
+# Plot the network graph with labeled nodes using visNetwork
+visNetwork(nodes_df_2, edges_df_2, main = list(text = "Network Graph of Company and Company Contacts",
+                                           style = "color: black; font-weight: bold; text-align: center;")) %>%
+  visIgraphLayout(layout = "layout_with_fr") %>%
+  visLayout(randomSeed = 123) %>%
+  addFontAwesome(name ="font-awesome") %>%
+  visGroups(groupname = "company", shape = "icon",
+            icon = list(code = "f0f7", color = "#000000")) %>%
+  visGroups(groupname = "Company Contacts", shape = "icon",
+            icon = list(code = "f0c0")) %>%
+  visOptions(
+    highlightNearest = TRUE,
+    nodesIdSelection = TRUE,
+  ) %>%
+  visLegend() %>%
+  visInteraction(
+    zoomView = TRUE,
+    dragNodes = TRUE,
+    dragView = TRUE,
+    navigationButtons = TRUE,
+    selectable = TRUE,  # Enable node selection
+    hover = TRUE,  # Enable hover effects
+  )
+```
+
+
+Top 5% revenue 
+
+```{r}
+filtered_mc3_edges <- mc3_edges_with_no_of_companies %>%
+  filter(no_of_companies > 3)
+```
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+# Create a data frame with source nodes and rename column
+id4 <- filtered_mc3_edges %>%
+  select(source) %>%
+  rename(id = source) %>%
+  mutate(type_node = "company")
+
+# Create a data frame with target nodes and rename column
+id5 <- filtered_mc3_edges %>%
+  select(target, type) %>%
+  rename(id = target, type_node = type)
+
+# Combine the two data frames and remove duplicates
+mc3_nodes3 <- rbind(id4, id5) %>%
+  distinct() %>%
+  left_join(mc3_nodes_updated,
+            unmatched = "drop") %>%
+  distinct()
+
+mc3_nodes3 <- mc3_nodes3 %>%
+  mutate(revenue_omu = ifelse(revenue_omu == "" | is.na(revenue_omu), "0", revenue_omu))
+
+#see if need add in some of the nodes detail 
+ mc3_nodes3
+```
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+# Convert the revenue column to numeric (if it's not already numeric)
+mc3_nodes3$revenue_omu <- as.numeric(mc3_nodes3$revenue_omu)
+
+# Calculate the revenue threshold for the top 20% excluding non-numeric or missing values
+revenue_threshold <- quantile(mc3_nodes3$revenue_omu, probs = 0.90, na.rm = TRUE)
+
+# Filter the DataFrame to retain only the rows with revenue above the threshold
+filtered_mc3_nodes <- mc3_nodes3[mc3_nodes3$revenue_omu > revenue_threshold, ]
+
+# View the filtered DataFrame
+filtered_mc3_nodes
+```
+
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 5
+#| fig-height: 6
+
+# Create a bar chart of revenue vs ID using ggplot
+bar_plot_toprev <- ggplot(filtered_mc3_nodes, aes(x = reorder(id, revenue_omu), y = revenue_omu/1000)) +
+  geom_bar_interactive(aes(tooltip = paste("ID:", id,
+                                           "<br>Type:", type_node,
+                                           "<br>Country:", country,
+                                           "<br>Revenue:", revenue_omu,
+                                           "<br>Product Services:", product_services)),
+                       stat = "identity", fill = "steelblue") +
+  labs(x = "id", y = "Revenue_omu ('000)", title = "Top 10% ids") +
+  coord_flip() +
+  theme(plot.title = element_text(face = "bold"))+
+  theme(axis.text.y = element_text(size = 6))
+
+# Print the bar plot
+girafe(ggobj = bar_plot_toprev,
+       width_svg = 8,
+  height_svg = 8*0.618)
+
+```
