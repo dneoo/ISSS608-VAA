@@ -95,13 +95,11 @@ DT::datatable(mc3_edges)
 The edge table provides us an understanding of the relationship between the source and targets. Here source is the Company and the relationship with the target is based on the type column. There are two kinds of relationship; beneficial owner and company contacts.
 :::
 
-### 4.1.1 Plotting the variables in edge dataframe
+### Plotting the variables in edge dataframe
 
 Below is the code chunk using `ggplot` to plot the distribution of the following:
 
 -   Distribution of the type of relationship that exist between the source and target and their corresponding frequency.
-
--   Number of companies that a beneficial owner owns
 
 ```{r}
 #| code-fold: true
@@ -123,6 +121,8 @@ hist_type <- ggplot(data = mc3_edges,
   theme(plot.title = element_text(face = "bold"))
 
 ```
+
+-   Number of companies that a beneficial owner owns
 
 ```{r}
 #| code-fold: true
@@ -181,13 +181,11 @@ combined_plot <- hist_type / gg_hist_own
 combined_plot
 ```
 
-As seen from the above plot, there are a total of 16,792 count for beneficial owners and 7,244 for Company contacts.
+As seen from the above plot, there are a total of **16,792** count for beneficial owners and **7,244** for Company contacts.
 
-Also, we can see that a majority of owners owns 1 company. In fact, less than 0.5% of the beneficial owners that own more than 3 companies. This may call for suspicious and we will further investigate. We could look at the size of the company in terms of their revenues and number of owners it has (will be explored further later on).
+Also, we can see that a majority of owners own 1 company. In fact, less than 0.5% of the beneficial owners own more than 3 companies. This may call for suspicion and we will further investigate later on. For instance, we could look at the size of the company in terms of their revenues and the number of owners it has.
 
-owners with many companies but small, these will not be listed companies, listed companies usually more transparent, more owners.
-
-### 4.1.2 Creating new edge dataframe
+### Creating new edge dataframe
 
 Below is the code chunk to create a new edge dataframe called `mc3_edges_with_no_of_companies`, which has the no_of_companies column added in.
 
@@ -219,14 +217,7 @@ In the code chunk below, `skim()` of skimr package is used to display the summar
 skim(mc3_nodes)
 ```
 
-
-There are a large number of missing values in the revenue_omu column and the column is treated as <chr> data type instead of numeric. Before we continue, we will change revenue_omu datatype to numeric.
-
-```{r}
-# Convert the "revenue_omu" column to numeric in mc3_nodes
-mc3_nodes <- mc3_nodes %>% 
-  mutate(revenue_omu = as.numeric(revenue_omu))
-```
+There are a large number of missing values in the revenue_omu column.
 
 In the code chunk below, `datatable()` of DT package is used to display mc3_nodes tibble data frame as an interactive table on the html document.
 
@@ -235,10 +226,10 @@ DT::datatable(mc3_nodes)
 ```
 
 ::: callout-note
-Observing the nodes datatable above, we will notice that some of the node ids are not unique, some may have more than 1 country, offer more than 1 product services and/or more than 1 revenue reflected.
+Observing the nodes datatable above, we will notice that some of the node ids are not unique, some may have more than 1 country, offer more than 1 product services and/or more than 1 revenue reflected. This could be one of the way to infer the size of the company; if it operates in more than 1 country and/or offer many products, its likely that they are a big company.
 :::
 
-### 4.2.1 Handling of missing and/or unknown values
+### Handling of missing and/or unknown values
 
 Notice that the product services column contains NA or character(0) values, which are meaningless, thus replace it with "unknown". As for revenue_omu column that has NA values, replace it with the value "0".
 
@@ -257,7 +248,7 @@ mc3_nodes <- mc3_nodes %>%
          revenue_omu = ifelse(revenue_omu == "" | is.na(revenue_omu), "0", revenue_omu))
 ```
 
-### 4.2.2 Checking for duplicate nodes and removing them
+### Checking for duplicate nodes and removing them
 
 ```{r}
 #| code-fold: true
@@ -273,16 +264,18 @@ mc3_nodes <- mc3_nodes %>%
 num_duplicates_nodes <- sum(duplicated(mc3_nodes))
 
 # Display the number of duplicates
-num_duplicates_nodes
+#num_duplicates_nodes
 
 # Remove duplicates from mc3_nodes
 mc3_nodes_unique <- distinct(mc3_nodes)
 
 ```
 
-There are a total of 2595 duplicated nodes. These duplicated nodes are removed and a new nodes dataframe, `mc_nodes_unique`dataframe is created.
+There are a total of **2595** duplicated nodes. These duplicated nodes are removed and a new nodes dataframe, `mc_nodes_unique`dataframe is created.
 
-### 4.2.3 Distribution of the type of nodes
+### 4.2.1 Distribution of the type of nodes
+
+Below is the code chunk to plot the distribution of the nodes type.
 
 ```{r}
 #| code-fold: true
@@ -305,14 +298,13 @@ hist_type_node <- ggplot(data = mc3_nodes_unique,
 #hist_type_node
 ```
 
-### 4.2.4 Distribution of the product_services
+### 4.2.2 Distribution of the product_services
 
 In this section, we will perform text sensing using appropriate functions of [tidytext](https://juliasilge.github.io/tidytext/) package.
 
 To begin, we will employ the tokenisation process. In text sensing, tokenisation is the process of breaking up a given text into units called tokens. Tokens can be individual words, phrases or even whole sentences. In the process of tokenisation, some characters like punctuation marks may be discarded. The tokens usually become the input for the processes like parsing and text mining.
 
 In the code chunk below, `unnest_token()` of tidytext is used to split text in product_services field into words.
-
 
 ```{r}
 token_nodes <- mc3_nodes_unique %>%
@@ -335,10 +327,9 @@ token_nodes %>%
   count(word, sort = TRUE) %>%
   top_n(5) %>%
   mutate(word = reorder(word, n)) 
-token_nodes
 ```
 
-The bar chart reveals that the unique words contains some words that may not be useful to use. For instance “and” and “to”. In the word of text mining we call those words stop words. Tidytext package has a function called `stop_words` that can help us clean up stop words. 
+The tibbel dataframe above reveals that the unique words contains some words that may not be useful to use. For instance "and" and "to". In the word of text mining we call those words stop words. Tidytext package has a function called `stop_words` that can help us clean up stop words.
 
 ```{r}
 stopwords_removed <- token_nodes %>% 
@@ -369,7 +360,7 @@ stopwords_removed %>%
 
 ```
 
-The below code chunk will better help us categorise our product_services for analysis into fishing related, non-fishing related and unknown. 
+The below code chunk will better help us categorise our product_services for analysis into fishing related, non-fishing related and unknown.
 
 ```{r}
 #Create a list of fishing related words 
@@ -383,6 +374,11 @@ mc3_nodes_unique$category <- ifelse(grepl(paste0("\\b", paste(include_words, col
                                           "Unknown",
                                           "Non-fishing related"))
 ```
+
+Next, we could look at the distribution of the category and find the median revenue for each category. We can observed from the pie chart below that only a small percentage (**4%**) of companies who offer fishing-related products_services. Also, the bar chart shows that the median revenue for fishing industry is around **29,811.38 OMU**.
+
+::: panel-tabset
+## Category Analysis
 
 ```{r}
 #| code-fold: true
@@ -424,26 +420,17 @@ ggplot_cat <- ggplot(category_freq, aes(x = "", y = n, fill = category)) +
                    show.legend = FALSE,
                    label.color = "black") +
   scale_fill_manual(values = category_colors)
-
-
 ```
-
-Looking at the above pie chart, we can see that companies that offer fishing-related products only take up a small percentage, around 4% and the rest are either non-fishing related or unknown. 
-
-Finding the median revenue for each category 
 
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
-#| fig-height: 8
-#| fig-width: 5
+#| fig-height: 6
+#| fig-width: 6
 
 #| echo: false
 #| fig-width: 3
 #| fig-height: 3
-
-library(dplyr)
-library(ggplot2)
 
 #Convert revenue_omu to numeric
 mc3_nodes_unique <- mc3_nodes_unique %>% 
@@ -468,8 +455,6 @@ ggplot_rev <- ggplot(median_revenue, aes(x = category, y = median_revenue_omu, f
   theme_bw() +
   theme(plot.title = element_text(face = "bold")) +
   geom_text(aes(label = round(median_revenue_omu, 2)), vjust = -0.5)
-
-
 ```
 
 ```{r}
@@ -486,12 +471,93 @@ combined_plot2 <- ggplot_cat / ggplot_rev
 combined_plot2
 ```
 
+## Top revenue ids
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+## Adding the `mc3_nodes_unique` attributes, consider both beneficial owners and company contacts
+filtered_mc3_edges <- mc3_edges_with_no_of_companies %>%
+  filter(no_of_companies > 3)
+
+
+# Create a data frame with source nodes and rename column
+id4 <- filtered_mc3_edges %>%
+  select(source) %>%
+  rename(id = source) %>%
+  mutate(type_node = "company")
+
+# Create a data frame with target nodes and rename column
+id5 <- filtered_mc3_edges %>%
+  select(target, type) %>%
+  rename(id = target, type_node = type)
+
+# Combine the two data frames and remove duplicates
+mc3_nodes3 <- rbind(id4, id5) %>%
+  distinct() %>%
+  left_join(mc3_nodes_unique,
+            unmatched = "drop") %>%
+  distinct()
+
+mc3_nodes3 <- mc3_nodes3 %>%
+  mutate(revenue_omu = ifelse(revenue_omu == "" | is.na(revenue_omu), "0", revenue_omu))
+
+
+# Convert the revenue column to numeric (if it's not already numeric)
+mc3_nodes3$revenue_omu <- as.numeric(mc3_nodes3$revenue_omu)
+
+# Calculate the revenue threshold for the top 20% excluding non-numeric or missing values
+revenue_threshold <- quantile(mc3_nodes3$revenue_omu, probs = 0.90, na.rm = TRUE)
+
+# Filter the DataFrame to retain only the rows with revenue above the threshold
+filtered_mc3_nodes <- mc3_nodes3[mc3_nodes3$revenue_omu > revenue_threshold, ]
+
+```
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 4
+#| fig-width: 4
+
+#| echo: false
+#| fig-width: 5
+#| fig-height: 6
+
+# Create a bar chart of revenue vs ID using ggplot
+bar_plot_toprev <- ggplot(filtered_mc3_nodes, aes(x = reorder(id, revenue_omu), y = revenue_omu/1000)) +
+  geom_bar_interactive(aes(tooltip = paste("ID:", id,
+                                           "<br>Type:", type_node,
+                                           "<br>Country:", country,
+                                           "<br>Revenue:", revenue_omu,
+                                           "<br>Product Services:", product_services)),
+                       stat = "identity", fill = "steelblue") +
+  labs(x = "id", y = "Revenue_omu ('000)", title = "Top 10% ids") +
+  coord_flip() +
+  theme(plot.title = element_text(face = "bold"))+
+  theme(axis.text.y = element_text(size = 6))
+
+# Print the bar plot
+girafe(ggobj = bar_plot_toprev,
+       width_svg = 8,
+  height_svg = 8*0.618)
+
+```
+
+:::
 
 # 5. Network Visualisation and Analysis
 
-## 5.1 Building network model with tidygraph for Beneficial Owners
+## 5.1 Building network model with tidygraph for *Beneficial Owners*
 
-Based on our edge dataframe analysis earlier on, we found out that less than 0.5% of the beneficial owners own more than 3 companies, which calls for suspicion, thus we will further investigate.  
+Based on our edge dataframe analysis earlier on, we found out that less than 0.5% of the beneficial owners own more than 3 companies, which calls for suspicion, thus we will further investigate, by plotting the network graph and seeing their relationship with other owners and/or companies.
 
 ### Preparing edge data table
 
@@ -499,7 +565,6 @@ Based on our edge dataframe analysis earlier on, we found out that less than 0.5
 #filter those beneficial owners that has more than 3 companies
 filtered_mc3_edges_owner <- mc3_edges_with_no_of_companies %>%
   filter(no_of_companies > 3, type == "Beneficial Owner")
-filtered_mc3_edges_owner
 ```
 
 ### Preparing nodes data table
@@ -530,12 +595,9 @@ id2 <- filtered_mc3_edges_owner %>%
 # Combine the two data frames and remove duplicates
 mc3_nodes1 <- rbind(id1, id2) %>%
   distinct() 
-
-#see if need add in some of the nodes detail 
- mc3_nodes1
 ```
 
-### Tidygraph model 
+### Tidygraph model
 
 ```{r}
 mc3_graph <- tbl_graph(nodes = mc3_nodes1,
@@ -547,8 +609,7 @@ mc3_graph <- tbl_graph(nodes = mc3_nodes1,
 ```
 
 ::: panel-tabset
-
-## VisNetwork 
+## VisNetwork
 
 ```{r}
 #| code-fold: true
@@ -604,7 +665,8 @@ visNetwork(nodes_df, edges_df, main = list(text = "Network Graph of Company and 
   )
 
 ```
-## Network graph 
+
+## Network graph
 
 ```{r}
 #| code-fold: true
@@ -631,9 +693,26 @@ ggraph(layout = "fr") +
 ggraph_own
 ```
 
+# Top 10 Owners 
+
+```{r}
+filtered_mc3_edges_owner
+```
+
+```{r}
+top_10_ids <- filtered_mc3_edges_owner %>%
+  select(target, no_of_companies) %>%
+  distinct() %>%
+  arrange(desc(no_of_companies)) 
+
+DT::datatable(top_10_ids)
+```
 :::
 
-## 5.2 Building network model with tidygraph for Company Contacts
+John Smith and Michael Johnson for instance are the beneficial owners for 8 companies. 
+
+
+## 5.2 Building network model with tidygraph for *Company Contacts*
 
 Similarly, to plot the network graph of Company and Company Contacts, we do the same as above,
 
@@ -678,7 +757,6 @@ mc3_graph2 <- tbl_graph(nodes = mc3_nodes2,
 ```
 
 ::: panel-tabset
-
 ## VisNetwork
 
 ```{r}
@@ -733,7 +811,7 @@ visNetwork(nodes_df_2, edges_df_2, main = list(text = "Network Graph of Company 
   )
 ```
 
-## Network graph 
+## Network graph
 
 ```{r}
 #| code-fold: true
@@ -759,90 +837,6 @@ ggraph(layout = "fr") +
   theme_graph()
 
 ```
-
 :::
 
-## 5.3 Adding the `mc3_nodes_unique` attributes 
 
-Here we will consider both beneficial owners and company contacts, 
-
-```{r}
-filtered_mc3_edges <- mc3_edges_with_no_of_companies %>%
-  filter(no_of_companies > 3)
-```
-
-```{r}
-#| code-fold: true
-#| code-summary: "Show the code"
-#| fig-height: 4
-#| fig-width: 4
-
-#| echo: false
-#| fig-width: 3
-#| fig-height: 3
-
-# Create a data frame with source nodes and rename column
-id4 <- filtered_mc3_edges %>%
-  select(source) %>%
-  rename(id = source) %>%
-  mutate(type_node = "company")
-
-# Create a data frame with target nodes and rename column
-id5 <- filtered_mc3_edges %>%
-  select(target, type) %>%
-  rename(id = target, type_node = type)
-
-# Combine the two data frames and remove duplicates
-mc3_nodes3 <- rbind(id4, id5) %>%
-  distinct() %>%
-  left_join(mc3_nodes_unique,
-            unmatched = "drop") %>%
-  distinct()
-
-mc3_nodes3 <- mc3_nodes3 %>%
-  mutate(revenue_omu = ifelse(revenue_omu == "" | is.na(revenue_omu), "0", revenue_omu))
-
-
-# Convert the revenue column to numeric (if it's not already numeric)
-mc3_nodes3$revenue_omu <- as.numeric(mc3_nodes3$revenue_omu)
-
-# Calculate the revenue threshold for the top 20% excluding non-numeric or missing values
-revenue_threshold <- quantile(mc3_nodes3$revenue_omu, probs = 0.90, na.rm = TRUE)
-
-# Filter the DataFrame to retain only the rows with revenue above the threshold
-filtered_mc3_nodes <- mc3_nodes3[mc3_nodes3$revenue_omu > revenue_threshold, ]
-
-# View the filtered DataFrame
-filtered_mc3_nodes
-```
-
-
-```{r}
-#| code-fold: true
-#| code-summary: "Show the code"
-#| fig-height: 4
-#| fig-width: 4
-
-#| echo: false
-#| fig-width: 5
-#| fig-height: 6
-
-# Create a bar chart of revenue vs ID using ggplot
-bar_plot_toprev <- ggplot(filtered_mc3_nodes, aes(x = reorder(id, revenue_omu), y = revenue_omu/1000)) +
-  geom_bar_interactive(aes(tooltip = paste("ID:", id,
-                                           "<br>Type:", type_node,
-                                           "<br>Country:", country,
-                                           "<br>Revenue:", revenue_omu,
-                                           "<br>Product Services:", product_services)),
-                       stat = "identity", fill = "steelblue") +
-  labs(x = "id", y = "Revenue_omu ('000)", title = "Top 10% ids") +
-  coord_flip() +
-  theme(plot.title = element_text(face = "bold"))+
-  theme(axis.text.y = element_text(size = 6))
-
-# Print the bar plot
-girafe(ggobj = bar_plot_toprev,
-       width_svg = 8,
-  height_svg = 8*0.618)
-
-```
