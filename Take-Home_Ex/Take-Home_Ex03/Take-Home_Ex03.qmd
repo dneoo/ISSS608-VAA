@@ -101,11 +101,19 @@ Below is the code chunk using `ggplot` to plot the distribution of the following
 
 -   Distribution of the type of relationship that exist between the source and target and their corresponding frequency.
 
+-   Number of companies that a beneficial owner owns
+
+-   Number of owners for each company
+
+::: panel-tabset
+
+## Relationship Types
+
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
-#| fig-height: 8
-#| fig-width: 5
+#| fig-height: 4
+#| fig-width: 4
 
 #| echo: false
 #| fig-width: 3
@@ -120,15 +128,16 @@ hist_type <- ggplot(data = mc3_edges,
   theme_bw() +
   theme(plot.title = element_text(face = "bold"))
 
+hist_type
 ```
 
--   Number of companies that a beneficial owner owns
+## No of companies owner owns 
 
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
-#| fig-height: 9
-#| fig-width: 6
+#| fig-height: 5
+#| fig-width: 5
 
 #| echo: false
 #| fig-width: 3
@@ -164,26 +173,39 @@ gg_hist_own <- gg_hist_own +
     size = 3
   )
 
+gg_hist_own
 ```
+
+## No of owners in a company
 
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
-#| fig-height: 8
-#| fig-width: 6
+#| fig-height: 5
+#| fig-width: 5
 
 #| echo: false
 #| fig-width: 3
 #| fig-height: 3
 
-#Combining the two plots using patchwork
-combined_plot <- hist_type / gg_hist_own
-combined_plot
+#Filter the type == "Beneficial Owner" 
+mc3_edges_comp <- mc3_edges %>%
+  filter(type == "Beneficial Owner") %>% 
+  group_by(source) %>%
+    summarise(no_of_owners = n()) %>%
+  ungroup() %>%
+  arrange(no_of_owners)
+
+DT::datatable(mc3_edges_comp)
+
 ```
+
+:::
+
 
 As seen from the above plot, there are a total of **16,792** count for beneficial owners and **7,244** for Company contacts.
 
-Also, we can see that a majority of owners own 1 company. In fact, less than 0.5% of the beneficial owners own more than 3 companies. This may call for suspicion and we will further investigate later on. For instance, we could look at the size of the company in terms of their revenues and the number of owners it has.
+Also, we can see that a majority of owners own 1 company. In fact, less than 0.5% of the beneficial owners own more than 3 companies. If the owners were to own many of the small companies (small in terms of companies who have few owners), this may call for suspicion and we will further investigate later on. 
 
 ### Creating new edge dataframe
 
