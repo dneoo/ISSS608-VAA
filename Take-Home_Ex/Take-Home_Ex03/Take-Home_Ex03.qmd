@@ -106,14 +106,13 @@ Below is the code chunk using `ggplot` to plot the distribution of the following
 -   Number of owners for each company
 
 ::: panel-tabset
-
 ## Relationship Types
 
 ```{r}
 #| code-fold: true
 #| code-summary: "Show the code"
-#| fig-height: 4
-#| fig-width: 4
+#| fig-height: 5
+#| fig-width: 5
 
 #| echo: false
 #| fig-width: 3
@@ -131,7 +130,7 @@ hist_type <- ggplot(data = mc3_edges,
 hist_type
 ```
 
-## No of companies owner owns 
+## No of companies owner owns
 
 ```{r}
 #| code-fold: true
@@ -199,13 +198,11 @@ mc3_edges_comp <- mc3_edges %>%
 DT::datatable(mc3_edges_comp)
 
 ```
-
 :::
 
+As seen from the above plot, there are a total of ***16,792*** count for beneficial owners and ***7,244*** for Company contacts.
 
-As seen from the above plot, there are a total of **16,792** count for beneficial owners and **7,244** for Company contacts.
-
-Also, we can see that a majority of owners own 1 company. In fact, less than 0.5% of the beneficial owners own more than 3 companies. If the owners were to own many of the small companies (small in terms of companies who have few owners), this may call for suspicion and we will further investigate later on. 
+Also, we can see that a majority of owners own 1 company. In fact, less than 0.5% of the beneficial owners own more than 3 companies. A table to show the number of owners for each company is also created,if the owners were to own many of the small companies (small in terms of companies who have few owners), this may call for suspicion and we will further investigate later on.
 
 ### Creating new edge dataframe
 
@@ -293,34 +290,9 @@ mc3_nodes_unique <- distinct(mc3_nodes)
 
 ```
 
-There are a total of **2595** duplicated nodes. These duplicated nodes are removed and a new nodes dataframe, `mc_nodes_unique`dataframe is created.
+There are a total of ***2595*** duplicated nodes. These duplicated nodes are removed and a new nodes dataframe, `mc_nodes_unique`dataframe is created.
 
-### 4.2.1 Distribution of the type of nodes
-
-Below is the code chunk to plot the distribution of the nodes type.
-
-```{r}
-#| code-fold: true
-#| code-summary: "Show the code"
-#| fig-height: 5
-#| fig-width: 5
-
-#| echo: false
-#| fig-width: 3
-#| fig-height: 3
-
-hist_type_node <- ggplot(data = mc3_nodes_unique,
-       aes(x = type)) +
-  geom_bar()+
-  geom_text(stat = 'count', aes(label = ..count..), vjust = -0.1) +
-  labs(title = "Distribution of Node Type", x = "Type", y = "Count") +
-  theme_bw() +
-  theme(plot.title = element_text(face = "bold")) 
-  
-#hist_type_node
-```
-
-### 4.2.2 Distribution of the product_services
+### 4.2.1 Distribution of the nodes type and product_services
 
 In this section, we will perform text sensing using appropriate functions of [tidytext](https://juliasilge.github.io/tidytext/) package.
 
@@ -351,7 +323,7 @@ token_nodes %>%
   mutate(word = reorder(word, n)) 
 ```
 
-The tibbel dataframe above reveals that the unique words contains some words that may not be useful to use. For instance "and" and "to". In the word of text mining we call those words stop words. Tidytext package has a function called `stop_words` that can help us clean up stop words.
+The tibble dataframe above reveals that the unique words contains some words that may not be useful to use. For instance, "and" and "of". In the word of text mining, we call those words stop words. Tidytext package has a function called `stop_words` that can help us clean up stop words.
 
 ```{r}
 stopwords_removed <- token_nodes %>% 
@@ -374,6 +346,7 @@ stopwords_removed %>%
   mutate(word = reorder(word, n)) %>%
   ggplot(aes(x = word, y = n)) +
   geom_col() +
+  geom_text(aes(label = n), vjust = 0.5, hjust = -0.2, size = 2.5) +  # Add labels to the bars
   xlab(NULL) +
   coord_flip() +
       labs(x = "Count",
@@ -382,7 +355,7 @@ stopwords_removed %>%
 
 ```
 
-The below code chunk will better help us categorise our product_services for analysis into fishing related, non-fishing related and unknown.
+The below code chunk will better help us categorise our product_services into fishing related, non-fishing related and unknown category for further analysis.
 
 ```{r}
 #Create a list of fishing related words 
@@ -397,10 +370,38 @@ mc3_nodes_unique$category <- ifelse(grepl(paste0("\\b", paste(include_words, col
                                           "Non-fishing related"))
 ```
 
-Next, we could look at the distribution of the category and find the median revenue for each category. We can observed from the pie chart below that only a small percentage (**4%**) of companies who offer fishing-related products_services. Also, the bar chart shows that the median revenue for fishing industry is around **29,811.38 OMU**.
+
+From the `Nodes Type` tab, we can see that there are a total of 3 node types, namely Beneficial Owner, Company and Company Contacts. 
+
+From the `Category Breakdown` tab, we can look at the distribution of the different categories and the median revenue for each category. As seen from the pie chart, only a ***small percentage (4%)*** of companies provide fishing-related products_services and the median revenue generated for fishing industry is around ***29,811.38 OMU***.
+
+Under the `Top revenue ids` tab, the top 10% revenue generating ids are plotted, which could possibly be used to cross check with the size of the company, to check for any abnormalities, for instance, few owners or contacts but exceptionally high earnings, and greater than the industry's median revenue.
 
 ::: panel-tabset
-## Category Analysis
+## Nodes Type
+
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 5
+#| fig-width: 5
+
+#| echo: false
+#| fig-width: 3
+#| fig-height: 3
+
+hist_type_node <- ggplot(data = mc3_nodes_unique,
+       aes(x = type)) +
+  geom_bar()+
+  geom_text(stat = 'count', aes(label = ..count..), vjust = -0.1) +
+  labs(title = "Distribution of Node Type", x = "Type", y = "Count") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold")) 
+  
+hist_type_node
+```
+
+## Category Breakdown
 
 ```{r}
 #| code-fold: true
@@ -572,7 +573,6 @@ girafe(ggobj = bar_plot_toprev,
   height_svg = 8*0.618)
 
 ```
-
 :::
 
 # 5. Network Visualisation and Analysis
@@ -682,8 +682,8 @@ visNetwork(nodes_df, edges_df, main = list(text = "Network Graph of Company and 
     dragNodes = TRUE,
     dragView = TRUE,
     navigationButtons = TRUE,
-    selectable = TRUE,  # Enable node selection
-    hover = TRUE,  # Enable hover effects
+    selectable = TRUE,  # For node selection
+    hover = TRUE,  # For hover effects
   )
 
 ```
@@ -715,24 +715,30 @@ ggraph(layout = "fr") +
 ggraph_own
 ```
 
-# Top 10 Owners 
+## Owners
 
 ```{r}
-filtered_mc3_edges_owner
-```
+#| code-fold: true
+#| code-summary: "Show the code"
+#| fig-height: 6
+#| fig-width: 6
 
-```{r}
-top_10_ids <- filtered_mc3_edges_owner %>%
+#| echo: false
+#| fig-width: 4
+#| fig-height: 4
+
+top_ids <- filtered_mc3_edges_owner %>%
   select(target, no_of_companies) %>%
   distinct() %>%
   arrange(desc(no_of_companies)) 
 
-DT::datatable(top_10_ids)
+DT::datatable(top_ids)
 ```
 :::
 
-John Smith and Michael Johnson for instance are the beneficial owners for 8 companies. 
+The `owners tab` provides a table to show the no of companies each owner owns. `Michael Johnson` for instance is the beneficial owner for 8 companies. When we delve into each of the companies he owns, he was the sole owner for the majority of his companies, and one of them, `Baker and Sons` , was even the top revenue generating company and it was way above the median revenue generated for a fishing industry, which seems suspicious.
 
+`James Smith` for instance, on the other hand also seems suspicious as he is the stakeholder of a large corporation `Spanish Shrimp A/S Marine`, who has 28 other stakeholders, and is one of the top revenue generating company, with revenue above the median revenue, but at the same time he is also the sole owner for the rest of the companies he is associated with.
 
 ## 5.2 Building network model with tidygraph for *Company Contacts*
 
@@ -828,8 +834,8 @@ visNetwork(nodes_df_2, edges_df_2, main = list(text = "Network Graph of Company 
     dragNodes = TRUE,
     dragView = TRUE,
     navigationButtons = TRUE,
-    selectable = TRUE,  # Enable node selection
-    hover = TRUE,  # Enable hover effects
+    selectable = TRUE,  # For node selection
+    hover = TRUE,  # For hover effects
   )
 ```
 
@@ -861,4 +867,10 @@ ggraph(layout = "fr") +
 ```
 :::
 
+As seen from the network graph above, some owners are not only the stakeholder/owner of more than 3 companies, but they are also company contacts with multiple other companies, such as `Jennifer Johnson`, `David Jones`, `John Willams` etc, which will require further investigations to see if there are any illegal activities going on.
 
+# 6. References
+
+VAST Challenge 2023 (nd). Mini-Challenge 3. Retrieved June 18, 2023, from <https://vast-challenge.github.io/2023/MC3.html>
+
+Datastorm(nd).visNetowork,an R package for an interactive network visualistion. Retrieved June 18, 2023, from <https://datastorm-open.github.io/visNetwork/edges.html>
